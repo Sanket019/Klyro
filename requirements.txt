@@ -1,4 +1,0 @@
-py-cord==2.4.1
-google-generativeai
-python-dotenv
-aiohttp
