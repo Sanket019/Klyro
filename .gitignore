@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Databases & local data
+*.db
+prefixes.json
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDEs
+.vscode/
+.idea/
