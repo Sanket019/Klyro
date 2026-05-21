@@ -1,107 +1,50 @@
-# 🤖 Discord Sports & Utility Bot
+# 🤖 Klyro - Multipurpose Discord Bot
 
-A feature-rich Discord bot with **AI-powered sports Q&A**, moderation, utility tools, and weather — supporting both `!prefix` and `/slash` commands.
+Klyro is a feature-rich, multipurpose Discord bot designed to bring sports intelligence, moderation tools, utility features, weather info, and general fun to your server. It supports both custom prefix commands and modern Discord slash (`/`) commands.
 
----
+## ✨ Features & Commands
 
-## ✨ Features
+### 🏆 Sports AI
+Get instant answers to sports queries, compare players, and find records:
+* `!ask <question>` — Ask anything about cricket, football, F1, NBA, and more.
+* `!compare <player1> <player2> [context]` — Compare two players side-by-side.
+* `!records <query>` — Look up sports records, rankings, and histories.
+* `!clearcache` — Clear your conversation history with the AI.
 
-| Category | Commands |
-|---|---|
-| 🏆 Sports AI | `ask`, `compare`, `records`, `clearcache` |
-| 🔨 Moderation | `kick`, `ban`, `mute`, `unmute`, `clear`, `warn`, `warnings`, `clearwarnings` |
-| ⚙️ Utility | `remind`, `poll`, `timer`, `serverinfo`, `userinfo`, `ping` |
-| 🌤️ Weather | `weather`, `forecast` |
-| ✨ Miscellaneous | `avatar`, `emoji`, `sticker`, `setprefix`, `about`, `invite` |
+### 🔨 Moderation
+Keep your server clean, organized, and secure:
+* `!kick @user [reason]` — Kick a member.
+* `!ban @user [reason]` — Ban a member.
+* `!mute @user <duration> [reason]` — Timeout a member (e.g. `10m`, `1h`, `1d`).
+* `!unmute @user` — Remove a timeout.
+* `!warn @user [reason]` — Issue a warning to a member.
+* `!warnings @user` — View warning logs for a member.
+* `!clearwarnings @user` — Clear all warning logs for a member.
+* `!clear <amount>` — Delete recent messages (default is 10, max 100).
 
----
+### ⚙️ Utility
+Everyday tools to help manage actions and server information:
+* `!remind <duration> <message>` — Set a reminder (e.g. `!remind 30m Take a break`).
+* `!poll <question> | <option1> | <option2>` — Create a reaction-based poll.
+* `!timer <minutes> [label]` — Start a countdown timer.
+* `!serverinfo` — Display details about the current server.
+* `!userinfo [@user]` — Display details about a user's account.
+* `!ping` — Check the bot's current connection latency.
 
-## 🚀 Setup Guide
+### 🌤️ Weather
+Get weather forecasts and current conditions:
+* `!weather <city>` — Get current temperature, humidity, wind, and conditions.
+* `!forecast <city>` — Get a 3-day weather forecast.
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/yourusername/discord-bot
-cd discord-bot
-```
-
-### 2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Set up your `.env` file
-```bash
-cp .env.example .env
-# Now open .env and fill in your keys
-```
-
-### 4. Get your API keys
-
-| Key | Where to get it |
-|---|---|
-| `DISCORD_TOKEN` | [discord.com/developers](https://discord.com/developers/applications) → New App → Bot → Token |
-| `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) (free tier available) |
-
-### 5. Invite your bot to a server
-- In Discord Developer Portal → OAuth2 → URL Generator
-- Scopes: `bot` + `applications.commands`
-- Permissions: `Administrator` (for full functionality)
-- Copy the URL and open it in browser
-
-### 6. Run the bot
-```bash
-python main.py
-```
+### ✨ Miscellaneous
+General utility and configuration commands:
+* `!avatar [@user]` — View and download a user's full-size avatar.
+* `!emoji <emoji>` — Enlarge custom emojis.
+* `!sticker` — Enlarge stickers sent with the command.
+* `!setprefix <prefix>` — Customise the bot's text command prefix for your server (Admin-only).
+* `!about` — View information about the bot.
+* `!invite` — Generate a link to invite the bot to your own servers.
 
 ---
 
-## 💬 Command Examples
-
-```
-!ask how many runs did Kohli score in IPL 2023?
-!ask how many goals did Kane score in UCL 2025-26?
-!compare Messi Ronaldo UCL career
-!records top 5 wicket takers in T20 World Cup
-!weather Mumbai
-!forecast Delhi
-!remind 25m Take a break
-!poll Best IPL team? | CSK | MI | RCB
-!timer 25 Pomodoro session
-!warn @user spamming
-!mute @user 10m cool down
-!clear 20
-!avatar @user
-!emoji <:custom_emoji:123456789012345678>
-!sticker (with an attached sticker)
-!setprefix ?
-!about
-!invite
-
-```
-
-All of these also work as `/slash` commands!
-
----
-
-## 🏗️ Project Structure
-
-```
-discord-bot/
-├── main.py              # Bot startup + help command
-├── requirements.txt
-├── .env.example         # Template for environment variables
-└── cogs/
-    ├── sports_ai.py     # AI-powered sports Q&A
-    ├── moderation.py    # Kick, ban, mute, warn etc.
-    ├── utility.py       # Reminders, polls, timers
-    ├── weather.py       # Weather & forecasts
-    └── miscellaneous.py # Avatar, emojis, invite, setprefix, etc.
-```
-
----
-
-## 🛠️ Built With
-- [py-cord](https://docs.pycord.dev/) — Discord bot framework
-- [Google Gemini](https://aistudio.google.com) — AI sports Q&A
-- [Open-Meteo](https://open-meteo.com) — Weather data (No API key required)
-- SQLite — Warning logs storage
+*Note: All commands can be run using the server's command prefix or by typing `/` to use slash commands.*
