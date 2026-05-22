@@ -11,7 +11,7 @@ class GeminiChat(commands.Cog):
         self.bot = bot
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
         # Using gemini-pro as it's the most stable universally available pro model alias
-        self.model = genai.GenerativeModel("gemini-pro")
+        self.model = genai.GenerativeModel("gemini-1.5-pro")
         self.conversations = {}
 
     def get_history(self, user_id: str):
