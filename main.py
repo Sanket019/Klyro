@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 import json
 from dotenv import load_dotenv
+from keep_alive import keep_alive
 
 load_dotenv()
 
@@ -115,4 +116,5 @@ for cog in COGS:
     except Exception as e:
         print(f"❌ Failed to load {cog}: {e}")
 
+keep_alive()
 bot.run(os.getenv("DISCORD_TOKEN"))

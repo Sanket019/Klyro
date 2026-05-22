@@ -1,4 +1,6 @@
-py-cord==2.4.1
+py-cord
 google-generativeai
 python-dotenv
 aiohttp
+Flask
+gunicorn
