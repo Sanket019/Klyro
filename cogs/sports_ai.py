@@ -44,22 +44,8 @@ class SportsAI(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
-        # Auto-detect an available model to avoid 404 errors
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        target_model = "gemini-pro" # Fallback
-        for m in available_models:
-            if "pro" in m.lower():
-                target_model = m
-                break
-        else:
-            if available_models:
-                target_model = available_models[0]
-            
-        print(f"🤖 Selected Gemini Model: {target_model}")
-        
         self.model = genai.GenerativeModel(
-            model_name=target_model,
+            model_name="gemini-pro",
             system_instruction=SYSTEM_PROMPT
         )
         self.conversations = {}  # Per-user conversation memory
