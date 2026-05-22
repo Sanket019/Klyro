@@ -52,8 +52,9 @@ class SportsAI(commands.Cog):
             if "pro" in m.lower():
                 target_model = m
                 break
-        elif available_models:
-            target_model = available_models[0]
+        else:
+            if available_models:
+                target_model = available_models[0]
             
         print(f"🤖 Selected Gemini Model: {target_model}")
         
