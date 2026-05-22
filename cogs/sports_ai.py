@@ -45,7 +45,7 @@ class SportsAI(commands.Cog):
         self.bot = bot
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
         self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-2.0-flash",
             system_instruction=SYSTEM_PROMPT
         )
         self.conversations = {}  # Per-user conversation memory

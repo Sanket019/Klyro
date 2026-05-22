@@ -64,6 +64,10 @@ async def send_help(ctx):
         description="Use your server's prefix (default `!`) or slash commands `/`!\n",
         color=0x9D00FF
     )
+    embed.add_field(name="🤖 General AI", value="""
+`!chat <question>` — Chat with Gemini AI about anything!
+""", inline=False)
+
     embed.add_field(name="🏆 Sports AI", value="""
 `!ask <question>` — Ask anything about any sport
 `!compare <p1> <p2>` — Compare two players
@@ -84,7 +88,7 @@ async def send_help(ctx):
 
     embed.add_field(name="⚙️ Utility", value="""
 `!remind <time> <message>` — Set a reminder (e.g. `!remind 30m Study DSA`)
-`!poll <question> | <opt1> | <opt2>` — Create a poll
+`!poll <question>, <opt1>, <opt2>` — Create a poll
 `!timer <minutes> [label]` — Countdown timer
 `!serverinfo` — Show server info
 `!userinfo [@user]` — Show user info
