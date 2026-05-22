@@ -67,13 +67,13 @@ class Utility(commands.Cog):
         await self._remind(ctx, duration, message)
 
     # ── POLL ──────────────────────────────────────────────────────────────────
-    async def _poll(self, ctx, question: str, options_str: str):
-        """options_str is pipe-separated: CSK | MI | RCB"""
-        options = [o.strip() for o in options_str.split("|") if o.strip()]
+    async def _poll(self, ctx, question: str, options: list):
         if len(options) < 2 or len(options) > 4:
-            return await send_response(ctx, content="❌ Provide 2–4 options separated by `|`\nExample: `!poll Best team? | CSK | MI | RCB`", ephemeral=True)
+            return await send_response(ctx, content="❌ Provide 2–4 options separated by `,`\nExample: `!poll Best team?, CSK, MI, RCB`", ephemeral=True)
 
         emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+        
+        # Better UI layout for the poll
         description = "\n\n".join(f"{emojis[i]} **{opt}**" for i, opt in enumerate(options))
 
         embed = discord.Embed(title=f"📊 {question}", description=description, color=0x9D00FF)
@@ -88,13 +88,19 @@ class Utility(commands.Cog):
         for i in range(len(options)):
             await poll_msg.add_reaction(emojis[i])
 
-    @commands.command(name="poll", help='Create a poll. e.g. !poll Best team? | CSK | MI | RCB')
-    async def poll_prefix(self, ctx, question: str, *, options_str: str):
-        await self._poll(ctx, question, options_str)
-
-    @discord.slash_command(name="poll", description='Create a poll. Options separated by | e.g. "CSK | MI | RCB"')
-    async def poll_slash(self, ctx, question: str, options: str):
+    @commands.command(name="poll", help='Create a poll. e.g. !poll Best team?, CSK, MI, RCB')
+    async def poll_prefix(self, ctx, *, query: str):
+        parts = [p.strip() for p in query.split(",") if p.strip()]
+        if len(parts) < 3:
+            return await send_response(ctx, content="❌ Provide a question and 2–4 options separated by `,`\nExample: `!poll Best team?, CSK, MI, RCB`", ephemeral=True)
+        question = parts[0]
+        options = parts[1:]
         await self._poll(ctx, question, options)
+
+    @discord.slash_command(name="poll", description='Create a poll. Options separated by commas e.g. "CSK, MI, RCB"')
+    async def poll_slash(self, ctx, question: str, options: str):
+        opts = [o.strip() for o in options.split(",") if o.strip()]
+        await self._poll(ctx, question, opts)
 
     # ── TIMER ─────────────────────────────────────────────────────────────────
     async def _timer(self, ctx, minutes: int, label: str):
