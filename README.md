@@ -1,8 +1,20 @@
 # 🤖 Klyro - Multipurpose Discord Bot
 
-Klyro is a feature-rich, multipurpose Discord bot designed to bring sports intelligence, moderation tools, utility features, weather info, and general fun to your server. It supports both custom prefix commands and modern Discord slash (`/`) commands.
+Klyro is a feature-rich, multipurpose Discord bot designed to bring AI chat, sports intelligence, moderation tools, utility features, weather info, and general fun to your server. It supports both custom prefix commands and modern Discord slash (`/`) commands.
+
+## 🛠️ Technology Stack
+
+* **Python 3 & Py-cord**: The core language and Discord API wrapper.
+* **Google Gemini AI (`gemini-2.0-flash`)**: Powers the General AI chat and the specialized Sports AI.
+* **Open-Meteo API**: Keyless API used for real-time weather and forecasting.
+* **Flask & Gunicorn**: Used alongside threading to maintain a lightweight web server, satisfying cloud hosting port-binding requirements.
+* **Render**: Cloud platform used for continuous deployment.
 
 ## ✨ Features & Commands
+
+### 🤖 General AI
+Have open-ended conversations with the AI:
+* `!chat <question>` — Chat with Gemini AI about anything!
 
 ### 🏆 Sports AI
 Get instant answers to sports queries, compare players, and find records:
@@ -25,7 +37,7 @@ Keep your server clean, organized, and secure:
 ### ⚙️ Utility
 Everyday tools to help manage actions and server information:
 * `!remind <duration> <message>` — Set a reminder (e.g. `!remind 30m Take a break`).
-* `!poll <question> | <option1> | <option2>` — Create a reaction-based poll.
+* `!poll <question>, <option1>, <option2>` — Create a reaction-based poll (comma-separated).
 * `!timer <minutes> [label]` — Start a countdown timer.
 * `!serverinfo` — Display details about the current server.
 * `!userinfo [@user]` — Display details about a user's account.
