@@ -16,13 +16,6 @@ Klyro is a feature-rich, multipurpose Discord bot designed to bring AI chat, spo
 Have open-ended conversations with the AI:
 * `!chat <question>` — Chat with Gemini AI about anything!
 
-### 🏆 Sports AI
-Get instant answers to sports queries, compare players, and find records:
-* `!ask <question>` — Ask anything about cricket, football, F1, NBA, and more.
-* `!compare <player1> <player2> [context]` — Compare two players side-by-side.
-* `!records <query>` — Look up sports records, rankings, and histories.
-* `!clearcache` — Clear your conversation history with the AI.
-
 ### 🔨 Moderation
 Keep your server clean, organized, and secure:
 * `!kick @user [reason]` — Kick a member.

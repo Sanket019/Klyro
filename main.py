@@ -32,7 +32,6 @@ COGS = [
     "cogs.moderation",
     "cogs.utility",
     "cogs.weather",
-    "cogs.sports_ai",
     "cogs.miscellaneous",
     "cogs.gemini_chat",
 ]
@@ -66,13 +65,6 @@ async def send_help(ctx):
     )
     embed.add_field(name="🤖 General AI", value="""
 `!chat <question>` — Chat with Gemini AI about anything!
-""", inline=False)
-
-    embed.add_field(name="🏆 Sports AI", value="""
-`!ask <question>` — Ask anything about any sport
-`!compare <p1> <p2>` — Compare two players
-`!records <query>` — Get records & rankings
-`!clearcache` — Reset your conversation history
 """, inline=False)
 
     embed.add_field(name="🔨 Moderation", value="""

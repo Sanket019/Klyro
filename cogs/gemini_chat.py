@@ -10,8 +10,8 @@ class GeminiChat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
-        # Using gemini-1.5-flash as the fast free-tier model
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        # Using gemini-pro as it's the most stable universally available free-tier model alias
+        self.model = genai.GenerativeModel("gemini-pro")
         self.conversations = {}
 
     def get_history(self, user_id: str):
