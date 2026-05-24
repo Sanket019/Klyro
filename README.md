@@ -5,7 +5,7 @@ Klyro is a feature-rich, multipurpose Discord bot designed to bring AI chat, spo
 ## 🛠️ Technology Stack
 
 * **Python 3 & Py-cord**: The core language and Discord API wrapper.
-* **Google Gemini AI (`gemini-2.0-flash`)**: Powers the General AI chat and the specialized Sports AI.
+* **Google Gemini AI (`gemini-1.5-flash`)**: Powers the General AI chat and the specialized Sports AI.
 * **Open-Meteo API**: Keyless API used for real-time weather and forecasting.
 * **Flask & Gunicorn**: Used alongside threading to maintain a lightweight web server, satisfying cloud hosting port-binding requirements.
 * **Render**: Cloud platform used for continuous deployment.
