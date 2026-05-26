@@ -64,8 +64,10 @@ async def send_help(ctx):
         description="Use your server's prefix (default `!`) or slash commands `/`!\n",
         color=0x9D00FF
     )
-    embed.add_field(name="🤖 General AI", value="""
-`!chat <question>` — Chat with Gemini AI about anything!
+    embed.add_field(name="🎮 BGMI Custom Matches", value="""
+`!lb weekly` — Weekly stats grouped by team
+`!lb lifetime` — All-time kills ranked globally
+`!bgmihelp` — Show all BGMI commands
 """, inline=False)
 
     embed.add_field(name="🔨 Moderation", value="""
