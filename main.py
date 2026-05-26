@@ -34,6 +34,7 @@ COGS = [
     "cogs.weather",
     "cogs.miscellaneous",
     "cogs.gemini_chat",
+    "cogs.bgmi",
 ]
 
 @bot.event
