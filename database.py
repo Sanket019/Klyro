@@ -16,6 +16,7 @@ def init_db():
                 lifetime_matches INTEGER DEFAULT 0,
                 lifetime_kills INTEGER DEFAULT 0
             )
+        ''')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS config (
                 key TEXT PRIMARY KEY,
