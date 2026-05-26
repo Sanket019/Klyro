@@ -44,6 +44,16 @@ def init_db():
                 value TEXT
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS warnings (
+                id SERIAL PRIMARY KEY,
+                guild_id TEXT,
+                user_id TEXT,
+                moderator_id TEXT,
+                reason TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         conn.commit()
 
 def set_admin_role(role_id: int):

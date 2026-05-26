@@ -1,28 +1,7 @@
 import discord
 from discord.ext import commands
-import sqlite3
 from datetime import timedelta
-
-DB_PATH = "bot_data.db"
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS warnings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            guild_id TEXT,
-            user_id TEXT,
-            moderator_id TEXT,
-            reason TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
+import database as db
 
 async def send_response(ctx, embed=None, content=None, ephemeral=False):
     """Universal send — works for both prefix and slash commands."""
@@ -164,14 +143,13 @@ class Moderation(commands.Cog):
 
     # ── WARN ──────────────────────────────────────────────────────────────────
     async def _warn(self, ctx, member, reason):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)",
-                  (str(ctx.guild.id), str(member.id), str(ctx.author.id), reason))
-        conn.commit()
-        c.execute("SELECT COUNT(*) FROM warnings WHERE guild_id=? AND user_id=?", (str(ctx.guild.id), str(member.id)))
-        total = c.fetchone()[0]
-        conn.close()
+        with db.DBConnection() as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (%s, %s, %s, %s)",
+                      (str(ctx.guild.id), str(member.id), str(ctx.author.id), reason))
+            conn.commit()
+            c.execute("SELECT COUNT(*) FROM warnings WHERE guild_id=%s AND user_id=%s", (str(ctx.guild.id), str(member.id)))
+            total = c.fetchone()[0]
 
         embed = discord.Embed(title="⚠️ Member Warned",
                               description=f"**{member.display_name}** warned. Total warnings: **{total}**\n**Reason:** {reason}",
@@ -195,19 +173,18 @@ class Moderation(commands.Cog):
 
     # ── WARNINGS ──────────────────────────────────────────────────────────────
     async def _warnings(self, ctx, member):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT reason, moderator_id, timestamp FROM warnings WHERE guild_id=? AND user_id=? ORDER BY timestamp DESC LIMIT 10",
-                  (str(ctx.guild.id), str(member.id)))
-        rows = c.fetchall()
-        conn.close()
+        with db.DBConnection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT reason, moderator_id, timestamp FROM warnings WHERE guild_id=%s AND user_id=%s ORDER BY timestamp DESC LIMIT 10",
+                      (str(ctx.guild.id), str(member.id)))
+            rows = c.fetchall()
 
         if not rows:
             return await send_response(ctx, content=f"✅ **{member.display_name}** has no warnings.")
 
         embed = discord.Embed(title=f"⚠️ Warnings for {member.display_name}", color=0x9D00FF)
         for i, (reason, mod_id, timestamp) in enumerate(rows, 1):
-            embed.add_field(name=f"#{i} — {timestamp[:10]}", value=f"**Reason:** {reason}\n**By:** <@{mod_id}>", inline=False)
+            embed.add_field(name=f"#{i} — {str(timestamp)[:10]}", value=f"**Reason:** {reason}\n**By:** <@{mod_id}>", inline=False)
         await send_response(ctx, embed=embed)
 
     @commands.command(name="warnings", help="View warnings for a member. e.g. !warnings @user")
@@ -222,11 +199,10 @@ class Moderation(commands.Cog):
 
     # ── CLEAR WARNINGS ────────────────────────────────────────────────────────
     async def _clearwarnings(self, ctx, member):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("DELETE FROM warnings WHERE guild_id=? AND user_id=?", (str(ctx.guild.id), str(member.id)))
-        conn.commit()
-        conn.close()
+        with db.DBConnection() as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM warnings WHERE guild_id=%s AND user_id=%s", (str(ctx.guild.id), str(member.id)))
+            conn.commit()
         await send_response(ctx, content=f"🗑️ Cleared all warnings for **{member.display_name}**.")
 
     @commands.command(name="clearwarnings", help="Clear all warnings for a member. e.g. !clearwarnings @user")
