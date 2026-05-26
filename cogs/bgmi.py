@@ -397,6 +397,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             ),
             color=0xffd166  # gold for lifetime
         )
+        embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")
 
         lines = []
         for rank, p in enumerate(players, start=1):
