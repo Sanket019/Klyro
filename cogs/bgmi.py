@@ -478,6 +478,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.set_footer(text="Klyro Bot • BGMI Module")
         await ctx.send(embed=embed)
 
+    @bgmi_help.error
     @add_match_stats.error
     @reset_weekly.error
     @manage_team.error
@@ -500,6 +501,18 @@ class BGMICog(commands.Cog, name="BGMI"):
         elif isinstance(error, commands.MemberNotFound):
             embed = discord.Embed(
                 description="❌ Could not find that member. Make sure to ping them correctly.",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+        elif isinstance(error, commands.RoleNotFound):
+            embed = discord.Embed(
+                description="❌ Could not find that role. Make sure to ping it correctly.",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+        elif isinstance(error, commands.BadArgument):
+            embed = discord.Embed(
+                description=f"❌ Invalid argument provided: {error}",
                 color=ERROR_COLOR
             )
             await ctx.send(embed=embed)
