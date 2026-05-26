@@ -339,7 +339,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             ),
             color=EMBED_COLOR
         )
-        embed.set_thumbnail(url="https://i.imgur.com/HaFl2R6.png")  # BGMI logo (replace if needed)
+        embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")  # BGMI logo (replace if needed)
 
         global_rank = 1  # rank across entire weekly board
         team_rank_map = {}  # separate rank per team
