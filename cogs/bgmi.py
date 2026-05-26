@@ -457,6 +457,29 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.set_footer(text="Klyro Bot • BGMI Module")
         await ctx.send(embed=embed)
 
+    @add_match_stats.error
+    @reset_weekly.error
+    @manage_team.error
+    async def bgmi_admin_error(self, ctx, error):
+        if isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
+            embed = discord.Embed(
+                description=f"❌ You need the `{ADMIN_ROLE}` role to use this command!",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+        elif isinstance(error, commands.MemberNotFound):
+            embed = discord.Embed(
+                description="❌ Could not find that member. Make sure to ping them correctly.",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(
+                description=f"❌ An error occurred: {str(error)}",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+
 
 # ── Cog loader ────────────────────────────────────────────
 def setup(bot):
