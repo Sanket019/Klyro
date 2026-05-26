@@ -140,7 +140,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 inline=False
             )
 
-        embed.set_footer(text="Both Weekly & Lifetime stats updated.")
+        embed.set_footer(text="Both Weekly & Overall stats updated.")
         await ctx.send(embed=embed)
 
     # ══════════════════════════════════════════════════════
@@ -156,7 +156,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             title="⚠️ Confirm Weekly Reset",
             description=(
                 "This will **zero out ALL weekly stats** for every player.\n"
-                "Lifetime stats will **not** be affected.\n\n"
+                "Overall stats will **not** be affected.\n\n"
                 "React with ✅ to confirm or ❌ to cancel."
             ),
             color=0xffd166
@@ -178,7 +178,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             db.reset_weekly()
             embed = discord.Embed(
                 title="🔄 Weekly Stats Reset",
-                description="All weekly kills and matches have been wiped to **0**.\nLifetime stats remain unchanged.",
+                description="All weekly kills and matches have been wiped to **0**.\nOverall stats remain unchanged.",
                 color=SUCCESS_COLOR
             )
             embed.set_footer(text=f"Reset by {ctx.author.display_name}")
@@ -304,7 +304,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             await ctx.send(embed=embed)
 
     # ══════════════════════════════════════════════════════
-    #   !leaderboard [weekly|lifetime]
+    #   !leaderboard [weekly|overall]
     # ══════════════════════════════════════════════════════
     @commands.command(name="leaderboard", aliases=["lb"])
     async def leaderboard(self, ctx: commands.Context, mode: str = "weekly"):
@@ -316,7 +316,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             await self._send_lifetime_leaderboard(ctx)
         else:
             embed = discord.Embed(
-                description="❌ Usage: `!leaderboard weekly` or `!leaderboard lifetime`",
+                description="❌ Usage: `!leaderboard weekly` or `!leaderboard overall`",
                 color=ERROR_COLOR
             )
             await ctx.send(embed=embed)
@@ -334,7 +334,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed = discord.Embed(
             title="🎮 BGMI Weekly Leaderboard",
             description=(
-                "`Rank  IGN              M    K    AVG `\n"
+                "`Rank  IGN              Matches    Kills    AVG `\n"
                 "`────────────────────────────────────`"
             ),
             color=EMBED_COLOR
@@ -390,12 +390,12 @@ class BGMICog(commands.Cog, name="BGMI"):
             ))
 
         embed = discord.Embed(
-            title="👑 BGMI Lifetime Leaderboard",
+            title="👑 BGMI Overall Leaderboard",
             description=(
                 "`Rank  IGN              Matches  Kills  AVG  `\n"
                 "`──────────────────────────────────────────`"
             ),
-            color=0xffd166  # gold for lifetime
+            color=0xffd166  # gold for overall
         )
         embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")
 
@@ -420,7 +420,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
 
         total_kills = sum(p["kills"] for p in players)
-        embed.set_footer(text=f"👥 {len(players)} players • 🔫 Total lifetime kills: {total_kills}")
+        embed.set_footer(text=f"👥 {len(players)} players")
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
 
@@ -453,7 +453,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             name="📊 Leaderboards (Everyone)",
             value=(
                 "`!leaderboard weekly` — Weekly stats grouped by team\n"
-                "`!leaderboard lifetime` — All-time kills ranked globally\n"
+                "`!leaderboard overall` — All-time kills ranked globally\n"
                 "`!lb` — Shortcut for leaderboard"
             ),
             inline=False

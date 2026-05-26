@@ -66,7 +66,7 @@ async def send_help(ctx):
     )
     embed.add_field(name="🎮 BGMI Custom Matches", value="""
 `!lb weekly` — Weekly stats grouped by team
-`!lb lifetime` — All-time kills ranked globally
+`!lb overall` — All-time kills ranked globally
 `!bgmihelp` — Show all BGMI commands
 """, inline=False)
 
