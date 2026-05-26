@@ -457,16 +457,16 @@ class BGMICog(commands.Cog, name="BGMI"):
             ),
             inline=False
         )
-        embed = discord.Embed(title="BGMI Custom Match Commands", color=0x3498db)
         embed.add_field(
-            name="👮 Admin / Manager Commands",
+            name=f"⚙️ Admin Commands (`{ADMIN_ROLE}` only)",
             value=(
-                "`!assign wow manager @role` - Assign the manager role for BGMI commands (requires Administrator)\n"
-                "`!manageteam add @player [Team Name]` - Add a player to a team\n"
-                "`!manageteam edit @player [New Team Name]` - Move a player\n"
-                "`!manageteam remove @player` - Delete a player from the DB\n"
-                "`!addmatchstats @p1 k1 @p2 k2 ...` - Log match stats\n"
-                "`!resetweekly` - Wipes all weekly stats (Lifetime is safe)"
+                "`!assign wow manager @role` — Assign manager role (Admin only)\n"
+                "`!addmatchstats @p1 k1 @p2 k2 ...` — Log match kills\n"
+                "`!resetweekly` — Wipe weekly stats (with confirmation)\n"
+                "`!manageteam add @p IGN [Team]` — Register player\n"
+                "`!manageteam remove @p` — Delete player\n"
+                "`!manageteam update_ign @p NewIGN` — Update IGN\n"
+                "`!manageteam set_team @p TeamName` — Move to team"
             ),
             inline=False
         )
