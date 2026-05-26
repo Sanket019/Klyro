@@ -1,10 +1,31 @@
-import sqlite3
 import os
+import psycopg2
+from psycopg2 import pool
+from psycopg2.extras import DictCursor
 
-DB_PATH = "bgmi_stats.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    print("WARNING: DATABASE_URL not set! Database functions will fail unless set.")
+    db_pool = None
+else:
+    # Initialize a connection pool (min 1, max 10 connections)
+    db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, DATABASE_URL)
+
+class DBConnection:
+    def __enter__(self):
+        if not db_pool:
+            raise Exception("Database is not configured. Please set DATABASE_URL.")
+        self.conn = db_pool.getconn()
+        return self.conn
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if hasattr(self, 'conn') and self.conn:
+            db_pool.putconn(self.conn)
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    if not db_pool: return
+    with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS players (
@@ -26,17 +47,17 @@ def init_db():
         conn.commit()
 
 def set_admin_role(role_id: int):
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO config (key, value) 
-            VALUES ('wow_manager_role', ?) 
-            ON CONFLICT(key) DO UPDATE SET value = ?
+            VALUES (%s, %s) 
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
         ''', (str(role_id), str(role_id)))
         conn.commit()
 
 def get_admin_role():
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM config WHERE key = 'wow_manager_role'")
         row = cursor.fetchone()
@@ -46,18 +67,18 @@ def get_admin_role():
 
 def add_match_stats(player_kills):
     not_found = []
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
         for discord_id, kills in player_kills:
-            cursor.execute('SELECT 1 FROM players WHERE discord_id = ?', (str(discord_id),))
+            cursor.execute('SELECT 1 FROM players WHERE discord_id = %s', (str(discord_id),))
             if cursor.fetchone():
                 cursor.execute('''
                     UPDATE players 
                     SET weekly_matches = weekly_matches + 1,
                         lifetime_matches = lifetime_matches + 1,
-                        weekly_kills = weekly_kills + ?,
-                        lifetime_kills = lifetime_kills + ?
-                    WHERE discord_id = ?
+                        weekly_kills = weekly_kills + %s,
+                        lifetime_kills = lifetime_kills + %s
+                    WHERE discord_id = %s
                 ''', (kills, kills, str(discord_id)))
             else:
                 not_found.append(str(discord_id))
@@ -65,65 +86,63 @@ def add_match_stats(player_kills):
     return not_found
 
 def get_player(discord_id):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM players WHERE discord_id = ?', (str(discord_id),))
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('SELECT * FROM players WHERE discord_id = %s', (str(discord_id),))
         row = cursor.fetchone()
         if row:
             return dict(row)
         return None
 
 def reset_weekly():
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute('UPDATE players SET weekly_matches = 0, weekly_kills = 0')
         conn.commit()
 
 def add_player(discord_id, ign, team):
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with DBConnection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO players (discord_id, bgmi_ign, team_name)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             ''', (str(discord_id), ign, team))
             conn.commit()
             return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return False
 
 def remove_player(discord_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM players WHERE discord_id = ?', (str(discord_id),))
+        cursor.execute('DELETE FROM players WHERE discord_id = %s', (str(discord_id),))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
 def update_ign(discord_id, ign):
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET bgmi_ign = ? WHERE discord_id = ?', (ign, str(discord_id)))
+        cursor.execute('UPDATE players SET bgmi_ign = %s WHERE discord_id = %s', (ign, str(discord_id)))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
 def set_team(discord_id, team):
-    with sqlite3.connect(DB_PATH) as conn:
+    with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET team_name = ? WHERE discord_id = ?', (team, str(discord_id)))
+        cursor.execute('UPDATE players SET team_name = %s WHERE discord_id = %s', (team, str(discord_id)))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
 def get_weekly_leaderboard():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
         cursor.execute('''
             SELECT bgmi_ign, team_name, weekly_matches, weekly_kills
             FROM players
@@ -152,9 +171,8 @@ def get_weekly_leaderboard():
     return teams
 
 def get_lifetime_leaderboard():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
         cursor.execute('''
             SELECT bgmi_ign, lifetime_matches, lifetime_kills
             FROM players
@@ -176,5 +194,5 @@ def get_lifetime_leaderboard():
         })
     return players
 
-# Initialize DB when module is imported
-init_db()
+if db_pool:
+    init_db()
