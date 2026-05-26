@@ -103,8 +103,8 @@ class Miscellaneous(commands.Cog):
     # ── ABOUT ─────────────────────────────────────────────────────────────────
     async def _about(self, ctx):
         embed = discord.Embed(
-            title="🤖 About Moderation Utility Sports AI",
-            description="I am a multi-purpose bot featuring sports AI, moderation, weather, and more!",
+            title="🤖 About Moderation Utility AI",
+            description="I am a multi-purpose bot featuring general AI, moderation, weather, and more!",
             color=0x9D00FF
         )
         embed.add_field(name="Servers", value=str(len(self.bot.guilds)), inline=True)
