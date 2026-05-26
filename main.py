@@ -117,4 +117,4 @@ for cog in COGS:
         print(f"❌ Failed to load {cog}: {e}")
 
 keep_alive()
-bot.run(os.getenv("DISCORD_TOKEN"))
+bot.run(os.getenv("TOKEN"))

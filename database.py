@@ -3,7 +3,7 @@ import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import DictCursor
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL") or "postgresql://neondb_owner:npg_xtaY3l6GjwSV@ep-royal-river-apeji572.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
 
 if not DATABASE_URL:
     print("WARNING: DATABASE_URL not set! Database functions will fail unless set.")
