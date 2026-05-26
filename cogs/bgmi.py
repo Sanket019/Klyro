@@ -459,5 +459,5 @@ class BGMICog(commands.Cog, name="BGMI"):
 
 
 # ── Cog loader ────────────────────────────────────────────
-async def setup(bot: commands.Bot):
-    await bot.add_cog(BGMICog(bot))
+def setup(bot):
+    bot.add_cog(BGMICog(bot))
