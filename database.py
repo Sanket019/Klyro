@@ -16,8 +16,32 @@ def init_db():
                 lifetime_matches INTEGER DEFAULT 0,
                 lifetime_kills INTEGER DEFAULT 0
             )
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
         ''')
         conn.commit()
+
+def set_admin_role(role_id: int):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO config (key, value) 
+            VALUES ('wow_manager_role', ?) 
+            ON CONFLICT(key) DO UPDATE SET value = ?
+        ''', (str(role_id), str(role_id)))
+        conn.commit()
+
+def get_admin_role():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM config WHERE key = 'wow_manager_role'")
+        row = cursor.fetchone()
+        if row:
+            return int(row[0])
+        return None
 
 def add_match_stats(player_kills):
     not_found = []

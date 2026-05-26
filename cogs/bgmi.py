@@ -26,28 +26,32 @@ def make_row(rank: int, ign: str, matches: int, kills: int, avg: float) -> str:
 #   COG
 # ══════════════════════════════════════════════════════════
 
+def is_admin_check():
+    async def predicate(ctx: commands.Context):
+        if ctx.author.guild_permissions.administrator:
+            return True
+        admin_role_id = db.get_admin_role()
+        if admin_role_id:
+            if any(r.id == admin_role_id for r in ctx.author.roles):
+                return True
+            raise commands.MissingRole(admin_role_id)
+        else:
+            if any(r.name == ADMIN_ROLE for r in ctx.author.roles):
+                return True
+            raise commands.MissingRole(ADMIN_ROLE)
+    return commands.check(predicate)
+
 class BGMICog(commands.Cog, name="BGMI"):
     """BGMI Clan Leaderboard System for Klyro Bot"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # ── Permission check helper ──────────────────────────
-    def is_admin(self, ctx: commands.Context) -> bool:
-        return any(r.name == ADMIN_ROLE for r in ctx.author.roles)
-
-    def admin_only(self):
-        async def predicate(ctx):
-            if not self.is_admin(ctx):
-                raise commands.MissingRole(ADMIN_ROLE)
-            return True
-        return commands.check(predicate)
-
     # ══════════════════════════════════════════════════════
     #   !addmatchstats @p1 k1 @p2 k2 ...
     # ══════════════════════════════════════════════════════
     @commands.command(name="addmatchstats")
-    @commands.check_any(commands.has_role(ADMIN_ROLE))
+    @is_admin_check()
     async def add_match_stats(self, ctx: commands.Context, *args):
         """
         Log match stats for multiple players at once.
@@ -143,7 +147,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     #   !resetweekly
     # ══════════════════════════════════════════════════════
     @commands.command(name="resetweekly")
-    @commands.check_any(commands.has_role(ADMIN_ROLE))
+    @is_admin_check()
     async def reset_weekly(self, ctx: commands.Context):
         """Wipe all weekly stats. Lifetime untouched."""
 
@@ -186,7 +190,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     #   !manageteam [action] @player [value]
     # ══════════════════════════════════════════════════════
     @commands.command(name="manageteam")
-    @commands.check_any(commands.has_role(ADMIN_ROLE))
+    @is_admin_check()
     async def manage_team(self, ctx: commands.Context, action: str, member: Member, *, value: str = None):
         """
         Manage player registrations.
@@ -420,6 +424,22 @@ class BGMICog(commands.Cog, name="BGMI"):
         await ctx.send(embed=embed)
 
     # ══════════════════════════════════════════════════════
+    #   !assign wow manager @role
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="assign")
+    @commands.has_permissions(administrator=True)
+    async def assign_role(self, ctx, module: str, role_type: str, role: discord.Role):
+        if module.lower() == "wow" and role_type.lower() == "manager":
+            db.set_admin_role(role.id)
+            embed = discord.Embed(
+                description=f"✅ Wow Manager role has been successfully set to {role.mention}",
+                color=SUCCESS_COLOR
+            )
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("Usage: `!assign wow manager @role`")
+
+    # ══════════════════════════════════════════════════════
     #   !bgmihelp
     # ══════════════════════════════════════════════════════
     @commands.command(name="bgmihelp")
@@ -437,15 +457,16 @@ class BGMICog(commands.Cog, name="BGMI"):
             ),
             inline=False
         )
+        embed = discord.Embed(title="BGMI Custom Match Commands", color=0x3498db)
         embed.add_field(
-            name=f"⚙️ Admin Commands (`{ADMIN_ROLE}` only)",
+            name="👮 Admin / Manager Commands",
             value=(
-                "`!addmatchstats @p1 k1 @p2 k2 ...` — Log match kills\n"
-                "`!resetweekly` — Wipe weekly stats (with confirmation)\n"
-                "`!manageteam add @p IGN [Team]` — Register player\n"
-                "`!manageteam remove @p` — Delete player\n"
-                "`!manageteam update_ign @p NewIGN` — Update IGN\n"
-                "`!manageteam set_team @p TeamName` — Move to team"
+                "`!assign wow manager @role` - Assign the manager role for BGMI commands (requires Administrator)\n"
+                "`!manageteam add @player [Team Name]` - Add a player to a team\n"
+                "`!manageteam edit @player [New Team Name]` - Move a player\n"
+                "`!manageteam remove @player` - Delete a player from the DB\n"
+                "`!addmatchstats @p1 k1 @p2 k2 ...` - Log match stats\n"
+                "`!resetweekly` - Wipes all weekly stats (Lifetime is safe)"
             ),
             inline=False
         )
@@ -460,10 +481,19 @@ class BGMICog(commands.Cog, name="BGMI"):
     @add_match_stats.error
     @reset_weekly.error
     @manage_team.error
+    @assign_role.error
     async def bgmi_admin_error(self, ctx, error):
-        if isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
+        if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(
-                description=f"❌ You need the `{ADMIN_ROLE}` role to use this command!",
+                description="❌ You need Administrator permissions to use this command!",
+                color=ERROR_COLOR
+            )
+            await ctx.send(embed=embed)
+        elif isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
+            admin_role_id = db.get_admin_role()
+            role_mention = f"<@&{admin_role_id}>" if admin_role_id else f"`{ADMIN_ROLE}`"
+            embed = discord.Embed(
+                description=f"❌ You need the {role_mention} role (or Administrator) to use this command!",
                 color=ERROR_COLOR
             )
             await ctx.send(embed=embed)
