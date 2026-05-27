@@ -327,7 +327,7 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         if not teams:
             return await ctx.send(embed=discord.Embed(
-                description="📭 No players in the database yet.",
+                description="📭 No players in the database.",
                 color=ERROR_COLOR
             ))
 
@@ -342,7 +342,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             for p in players:
                 medal = MEDALS.get(team_rank, f"`#{team_rank}`")
                 ign   = p["ign"][:14]
-                line  = f"{medal} **{ign}** — `M: {p['matches']}` `K: {p['kills']}` `AVG: {p['avg']:.2f}`"
+                line  = f"{medal} `{ign}  ` — `M: {p['matches']} `  `K: {p['kills']} `  `AVG: {p['avg']:.2f} `"
                 lines.append(line)
                 team_rank += 1
 
@@ -369,7 +369,7 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         if not players:
             return await ctx.send(embed=discord.Embed(
-                description="📭 No players in the database yet.",
+                description="📭 No players in the database.",
                 color=ERROR_COLOR
             ))
 
@@ -382,7 +382,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         for rank, p in enumerate(players, start=1):
             medal = MEDALS.get(rank, f"`#{rank}`")
             ign   = p["ign"][:14]
-            line  = f"{medal} **{ign}** — `M: {p['matches']}` `K: {p['kills']}` `AVG: {p['avg']:.2f}`"
+            line  = f"{medal} `{ign}  ` — `M: {p['matches']} `  `K: {p['kills']} `  `AVG: {p['avg']:.2f} `"
             lines.append(line)
 
             if len(lines) == 10:
