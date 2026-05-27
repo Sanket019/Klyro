@@ -336,35 +336,28 @@ class BGMICog(commands.Cog, name="BGMI"):
             color=EMBED_COLOR
         )
 
-        global_rank = 1  # rank across entire weekly board
-        team_rank_map = {}  # separate rank per team
-
         for team_name, players in teams.items():
             lines = []
             team_rank = 1
             for p in players:
                 medal = MEDALS.get(team_rank, f"`#{team_rank}`")
-                ign   = p["ign"][:13]   # cap length so line fits on mobile
-                line = f"{medal} `{ign}` — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
+                ign   = p["ign"][:14]
+                line  = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
                 lines.append(line)
                 team_rank += 1
 
             team_icon = "🔴" if "alpha" in team_name.lower() else "🔵" if "bravo" in team_name.lower() else "⚪"
             embed.add_field(
-                name=f"{team_icon} {team_name}",
-                value="\n".join(lines) if lines else "*No stats yet*",
+                name=f"{team_icon} **{team_name}**",
+                value="\n".join(lines).rstrip() if lines else "*No stats yet*",
                 inline=False
             )
 
-        total_matches = sum(
-            p["matches"]
-            for players in teams.values()
-            for p in players
-        )
+        total_matches = sum(p["matches"] for pl in teams.values() for p in pl)
         total_players = sum(len(v) for v in teams.values())
 
         embed.set_footer(
-            text=f"👥 {total_players} players • Total matches tracked: {total_matches // max(total_players, 1)}",
+            text=f"👥 {total_players} players  •  Total matches tracked: {total_matches // max(total_players, 1)}",
             icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
         )
         embed.timestamp = ctx.message.created_at
@@ -388,12 +381,10 @@ class BGMICog(commands.Cog, name="BGMI"):
         lines = []
         for rank, p in enumerate(players, start=1):
             medal = MEDALS.get(rank, f"`#{rank}`")
-            ign   = p["ign"][:13]   # cap length so line fits on mobile
-            # All stats on ONE line
-            line = f"{medal} `{ign}` — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
+            ign   = p["ign"][:14]
+            line  = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
             lines.append(line)
 
-            # Split into multiple fields if >10 lines (Discord embed limit)
             if len(lines) == 10:
                 embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
                 lines = []
