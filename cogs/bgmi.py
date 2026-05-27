@@ -344,6 +344,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 ign   = p["ign"][:14]
                 line  = f"{medal} `{ign}  ` — `M: {p['matches']} `  `K: {p['kills']} `  `AVG: {p['avg']:.2f} `"
                 lines.append(line)
+                lines.append("")
                 team_rank += 1
 
             team_icon = "🔴" if "alpha" in team_name.lower() else "🔵" if "bravo" in team_name.lower() else "⚪"
@@ -384,6 +385,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             ign   = p["ign"][:14]
             line  = f"{medal} `{ign}  ` — `M: {p['matches']} `  `K: {p['kills']} `  `AVG: {p['avg']:.2f} `"
             lines.append(line)
+            lines.append("")
 
             if len(lines) == 10:
                 embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
