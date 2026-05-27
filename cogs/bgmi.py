@@ -345,18 +345,16 @@ class BGMICog(commands.Cog, name="BGMI"):
             team_rank = 1
             for p in players:
                 medal = MEDALS.get(team_rank, f"`#{team_rank}`")
-                ign   = p["ign"]
-                line  = (
-                    f"{medal} **{ign}**\n"
-                    f"└ M: `{p['matches']}` ‧ K: `{p['kills']}` ‧ AVG: `{p['avg']:.2f}`"
-                )
+                ign   = p["ign"][:13]   # cap length so line fits on mobile
+                # All stats on ONE line — no \n inside the row
+                line = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
                 lines.append(line)
                 team_rank += 1
 
             team_icon = "🔴" if "alpha" in team_name.lower() else "🔵" if "bravo" in team_name.lower() else "⚪"
             embed.add_field(
                 name=f"{team_icon} {team_name}",
-                value="\n\n".join(lines) if lines else "*No stats yet*",
+                value="\n".join(lines) if lines else "*No stats yet*",
                 inline=False
             )
 
@@ -392,20 +390,18 @@ class BGMICog(commands.Cog, name="BGMI"):
         lines = []
         for rank, p in enumerate(players, start=1):
             medal = MEDALS.get(rank, f"`#{rank}`")
-            ign   = p["ign"]
-            line  = (
-                f"{medal} **{ign}**\n"
-                f"└ M: `{p['matches']}` ‧ K: `{p['kills']}` ‧ AVG: `{p['avg']:.2f}`"
-            )
+            ign   = p["ign"][:13]   # cap length so line fits on mobile
+            # All stats on ONE line
+            line = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
             lines.append(line)
 
             # Split into multiple fields if >10 lines (Discord embed limit)
             if len(lines) == 10:
-                embed.add_field(name="\u200b", value="\n\n".join(lines), inline=False)
+                embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
                 lines = []
 
         if lines:
-            embed.add_field(name="\u200b", value="\n\n".join(lines), inline=False)
+            embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
 
         total_kills = sum(p["kills"] for p in players)
         embed.set_footer(text=f"👥 {len(players)} players")
