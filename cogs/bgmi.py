@@ -149,7 +149,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="resetweekly")
     @is_admin_check()
     async def reset_weekly(self, ctx: commands.Context):
-        """Wipe all weekly stats. Lifetime untouched."""
+        """Wipe all weekly stats. Overall stats untouched."""
 
         # Confirmation prompt
         confirm_embed = discord.Embed(
@@ -332,11 +332,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             ))
 
         embed = discord.Embed(
-            title="🎮 BGMI Weekly Leaderboard",
-            description=(
-                "`Rank  IGN              Matches    Kills    AVG `\n"
-                "`────────────────────────────────────`"
-            ),
+            title="🎮 WoW Weekly Leaderboard",
             color=EMBED_COLOR
         )
         embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")  # BGMI logo (replace if needed)
@@ -348,13 +344,11 @@ class BGMICog(commands.Cog, name="BGMI"):
             lines = []
             team_rank = 1
             for p in players:
-                medal = MEDALS.get(team_rank, f"`#{team_rank:>2}`")
-                ign   = p["ign"][:15].ljust(15)
+                medal = MEDALS.get(team_rank, f"`#{team_rank}`")
+                ign   = p["ign"]
                 line  = (
-                    f"{medal} `{ign}` "
-                    f"`M:{p['matches']:>3}` "
-                    f"`K:{p['kills']:>4}` "
-                    f"`{p['avg']:>5.2f}`"
+                    f"{medal} **{ign}**\n"
+                    f"└ M: `{p['matches']}` ‧ K: `{p['kills']}` ‧ AVG: `{p['avg']:.2f}`"
                 )
                 lines.append(line)
                 team_rank += 1
@@ -362,7 +356,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             team_icon = "🔴" if "alpha" in team_name.lower() else "🔵" if "bravo" in team_name.lower() else "⚪"
             embed.add_field(
                 name=f"{team_icon} {team_name}",
-                value="\n".join(lines) if lines else "*No stats yet*",
+                value="\n\n".join(lines) if lines else "*No stats yet*",
                 inline=False
             )
 
@@ -390,34 +384,28 @@ class BGMICog(commands.Cog, name="BGMI"):
             ))
 
         embed = discord.Embed(
-            title="👑 BGMI Overall Leaderboard",
-            description=(
-                "`Rank  IGN              Matches  Kills  AVG  `\n"
-                "`──────────────────────────────────────────`"
-            ),
+            title="👑 WoW Overall Leaderboard",
             color=0xffd166  # gold for overall
         )
         embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")
 
         lines = []
         for rank, p in enumerate(players, start=1):
-            medal = MEDALS.get(rank, f"`#{rank:>2}`")
-            ign   = p["ign"][:15].ljust(15)
+            medal = MEDALS.get(rank, f"`#{rank}`")
+            ign   = p["ign"]
             line  = (
-                f"{medal} `{ign}` "
-                f"`M:{p['matches']:>4}` "
-                f"`K:{p['kills']:>5}` "
-                f"`{p['avg']:>5.2f}`"
+                f"{medal} **{ign}**\n"
+                f"└ M: `{p['matches']}` ‧ K: `{p['kills']}` ‧ AVG: `{p['avg']:.2f}`"
             )
             lines.append(line)
 
-            # Split into multiple fields if >20 lines (Discord embed limit)
-            if len(lines) == 20:
-                embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
+            # Split into multiple fields if >10 lines (Discord embed limit)
+            if len(lines) == 10:
+                embed.add_field(name="\u200b", value="\n\n".join(lines), inline=False)
                 lines = []
 
         if lines:
-            embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
+            embed.add_field(name="\u200b", value="\n\n".join(lines), inline=False)
 
         total_kills = sum(p["kills"] for p in players)
         embed.set_footer(text=f"👥 {len(players)} players")
@@ -446,7 +434,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="bgmihelp")
     async def bgmi_help(self, ctx: commands.Context):
         embed = discord.Embed(
-            title="🎮 BGMI Bot — Command Reference",
+            title="🎮 WoW Bot — Command Reference",
             color=EMBED_COLOR
         )
         embed.add_field(
