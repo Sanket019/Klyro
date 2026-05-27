@@ -467,11 +467,66 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.set_footer(text="Klyro Bot • BGMI Module")
         await ctx.send(embed=embed)
 
+    # ══════════════════════════════════════════════════════
+    #   !dbstatus
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="dbstatus")
+    @commands.has_permissions(administrator=True)
+    async def db_status(self, ctx: commands.Context):
+        """Check the database connection status (Admin only)"""
+        import os
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            db_type = "Fallback Neon Postgres (Hardcoded)"
+            masked_url = "Using default Neon URL"
+        else:
+            db_type = "Custom Environment Database"
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                masked_url = f"{parsed.scheme}://{parsed.username}:******@{parsed.hostname}{parsed.path}"
+            except Exception:
+                masked_url = "Invalid/Error parsing URL"
+
+        connected = False
+        error_msg = None
+        try:
+            with db.DBConnection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                connected = True
+        except Exception as e:
+            error_msg = str(e)
+
+        embed = discord.Embed(
+            title="🗄️ Database Status",
+            color=SUCCESS_COLOR if connected else ERROR_COLOR
+        )
+        embed.add_field(name="Connection Status", value="🟢 Connected" if connected else f"🔴 Failed: {error_msg}", inline=False)
+        embed.add_field(name="Database Configuration", value=db_type, inline=False)
+        embed.add_field(name="Database URL (Masked)", value=f"`{masked_url}`", inline=False)
+        
+        if connected:
+            try:
+                with db.DBConnection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM players")
+                    players_count = cursor.fetchone()[0]
+                    cursor.execute("SELECT COUNT(*) FROM config")
+                    config_count = cursor.fetchone()[0]
+                embed.add_field(name="Stats", value=f"• Registered Players: {players_count}\n• Config Key-Values: {config_count}", inline=False)
+            except Exception as e:
+                embed.add_field(name="Stats Error", value=str(e), inline=False)
+
+        await ctx.send(embed=embed)
+
     @bgmi_help.error
     @add_match_stats.error
     @reset_weekly.error
     @manage_team.error
     @assign_role.error
+    @db_status.error
     async def bgmi_admin_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(
