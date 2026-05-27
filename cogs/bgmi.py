@@ -335,7 +335,6 @@ class BGMICog(commands.Cog, name="BGMI"):
             title="🎮 WoW Weekly Leaderboard",
             color=EMBED_COLOR
         )
-        embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")  # BGMI logo (replace if needed)
 
         global_rank = 1  # rank across entire weekly board
         team_rank_map = {}  # separate rank per team
@@ -346,8 +345,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             for p in players:
                 medal = MEDALS.get(team_rank, f"`#{team_rank}`")
                 ign   = p["ign"][:13]   # cap length so line fits on mobile
-                # All stats on ONE line — no \n inside the row
-                line = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
+                line = f"{medal} `{ign}` — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
                 lines.append(line)
                 team_rank += 1
 
@@ -366,7 +364,8 @@ class BGMICog(commands.Cog, name="BGMI"):
         total_players = sum(len(v) for v in teams.values())
 
         embed.set_footer(
-            text=f"👥 {total_players} players • 🔫 Total matches tracked: {total_matches // max(total_players, 1)}"
+            text=f"👥 {total_players} players • Total matches tracked: {total_matches // max(total_players, 1)}",
+            icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
         )
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
@@ -385,14 +384,13 @@ class BGMICog(commands.Cog, name="BGMI"):
             title="👑 WoW Overall Leaderboard",
             color=0xffd166  # gold for overall
         )
-        embed.set_thumbnail(url="https://sm.ign.com/t/ign_in/game/b/battlegrou/battlegrounds-mobile-india_ze4x.1200.jpg")
 
         lines = []
         for rank, p in enumerate(players, start=1):
             medal = MEDALS.get(rank, f"`#{rank}`")
             ign   = p["ign"][:13]   # cap length so line fits on mobile
             # All stats on ONE line
-            line = f"{medal} **{ign}** — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
+            line = f"{medal} `{ign}` — `M:{p['matches']}` `K:{p['kills']}` `AVG:{p['avg']:.2f}`"
             lines.append(line)
 
             # Split into multiple fields if >10 lines (Discord embed limit)
@@ -404,7 +402,10 @@ class BGMICog(commands.Cog, name="BGMI"):
             embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
 
         total_kills = sum(p["kills"] for p in players)
-        embed.set_footer(text=f"👥 {len(players)} players")
+        embed.set_footer(
+            text=f"👥 {len(players)} players",
+            icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
+        )
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
 
