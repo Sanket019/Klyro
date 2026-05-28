@@ -117,7 +117,7 @@ def add_match_stats(guild_id: str, player_kills):
                         lifetime_matches = lifetime_matches + 1,
                         weekly_kills = weekly_kills + %s,
                         lifetime_kills = lifetime_kills + %s
-                    WHERE discord_id = %s
+                    WHERE guild_id = %s AND discord_id = %s
                 ''', (kills, kills, guild_id, str(discord_id)))
             else:
                 not_found.append(str(discord_id))
@@ -127,7 +127,7 @@ def add_match_stats(guild_id: str, player_kills):
 def get_player(guild_id: str, discord_id):
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
-        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
+        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (guild_id, str(discord_id)))
         row = cursor.fetchone()
         if row:
             return dict(row)
@@ -339,7 +339,7 @@ def get_personal_stats(guild_id: str, discord_id: str) -> dict | None:
     """Returns full stats for a single player including lifetime rank."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
-        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
+        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (guild_id, str(discord_id)))
         row = cursor.fetchone()
         if not row:
             return None
@@ -349,8 +349,8 @@ def get_personal_stats(guild_id: str, discord_id: str) -> dict | None:
         cursor.execute('''
             SELECT COUNT(*) + 1 AS rank
             FROM players
-            WHERE lifetime_kills > %s
-        ''', (player['lifetime_kills'],))
+            WHERE guild_id = %s AND lifetime_kills > %s
+        ''', (guild_id, player['lifetime_kills']))
         rank_row = cursor.fetchone()
         player['lifetime_rank'] = rank_row['rank'] if rank_row else '?'
 
@@ -358,8 +358,8 @@ def get_personal_stats(guild_id: str, discord_id: str) -> dict | None:
         cursor.execute('''
             SELECT MAX(kills) AS best
             FROM match_history
-            WHERE discord_id = %s
-        ''', (str(discord_id),))
+            WHERE guild_id = %s AND discord_id = %s
+        ''', (guild_id, str(discord_id)))
         best_row = cursor.fetchone()
         player['best_match'] = best_row['best'] if best_row and best_row['best'] else 0
 
