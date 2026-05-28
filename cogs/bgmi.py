@@ -682,45 +682,52 @@ class BGMICog(commands.Cog, name="BGMI"):
     # ══════════════════════════════════════════════════════
     @commands.command(name="bgmihelp")
     async def bgmi_help(self, ctx: commands.Context):
+        p = ctx.prefix
         embed = discord.Embed(title="🎮 WoW Bot — Command Reference", color=EMBED_COLOR)
         embed.add_field(
             name="📊 Leaderboards (Everyone)",
             value=(
-                "`!leaderboard weekly` — Weekly stats grouped by team\n"
-                "`!leaderboard overall` — All-time Kills \n"
-                "`!lb` — Shortcut for leaderboard"
+                f"`{p}leaderboard weekly` — Weekly stats grouped by team\n"
+                f"`{p}leaderboard overall` — All-time Kills \n"
+                f"`{p}lb` — Shortcut for leaderboard"
             ),
             inline=False
         )
         embed.add_field(
             name="📈 Stats Commands (Everyone)",
             value=(
-                "`!stats @player` — Personal stats card\n"
-                "`!teamstats` — Team vs Team weekly scoreboard\n"
-                "`!tvt` — Shortcut for teamstats\n"
-                "`!weekwinner` — Crown this week's top killer\n"
-                "`!today_mvp` — MVP of today\n"
-                "`!today_summary` — Full kill summary for today\n"
-                "`!matchhistory [n]` — Last N match sessions (default 5)\n"
-                "`!mh` — Shortcut for match history"
+                f"`{p}stats @player` — Personal stats card\n"
+                f"`{p}teamstats` — Team vs Team weekly scoreboard\n"
+                f"`{p}tvt` — Shortcut for teamstats\n"
+                f"`{p}weekwinner` — Crown this week's top killer\n"
+                f"`{p}today_mvp` — MVP of today\n"
+                f"`{p}today_summary` — Full kill summary for today\n"
+                f"`{p}matchhistory [n]` — Last N match sessions (default 5)\n"
+                f"`{p}mh` — Shortcut for match history\n"
+                f"`{p}team` — View today's active playing 5 for all teams"
             ),
             inline=False
         )
         embed.add_field(
             name=f"⚙️ Admin Commands (`{ADMIN_ROLE}` only)",
             value=(
-                "`!assign wow manager @role` — Assign manager role (Admin only)\n"
-                "`!addmatchstats @p1 k1 @p2 k2 ...` — Enter match kills\n"
-                "`!manageteam add @p IGN [Team]` — Register player\n"
-                "`!manageteam remove @p` — Delete player\n"
-                "`!manageteam update_ign @p NewIGN` — Update IGN\n"
-                "`!manageteam set_team @p TeamName` — Move to team"
+                f"`{p}assign wow manager @role` — Assign manager role (Admin only)\n"
+                f"`{p}addmatchstats @p1 k1 @p2 k2 ...` — Enter match kills\n"
+                f"`{p}manageteam add @p IGN [Team]` — Register player\n"
+                f"`{p}manageteam remove @p` — Delete player\n"
+                f"`{p}manageteam update_ign @p NewIGN` — Update IGN\n"
+                f"`{p}manageteam set_team @p TeamName` — Move to team\n"
+                f"`{p}playing TeamName @p1 @p2 @p3 @p4 @p5` — Set playing 5 lineup"
             ),
             inline=False
         )
         embed.add_field(
-            name="📝 Team Names",
-            value="Use exact team names like `Team Alpha`, `Team Bravo`, or `Bench`",
+            name="📝 Team Names & Lineups",
+            value=(
+                "Use exact team names like `Team Alpha`, `Team Bravo`, or `Bench`.\n"
+                f"Admins: use `{p}playing` to lock in the 5 playing members for a team.\n"
+                f"Everyone: use `{p}team` to view the merged lineups for all teams."
+            ),
             inline=False
         )
         embed.add_field(
