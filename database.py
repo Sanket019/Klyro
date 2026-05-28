@@ -9,7 +9,6 @@ if not DATABASE_URL:
     print("WARNING: DATABASE_URL not set! Database functions will fail unless set.")
     db_pool = None
 else:
-    # Initialize a connection pool (min 1, max 10 connections)
     db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, DATABASE_URL)
 
 class DBConnection:
@@ -18,7 +17,6 @@ class DBConnection:
             raise Exception("Database is not configured. Please set DATABASE_URL.")
         self.conn = db_pool.getconn()
         return self.conn
-    
     def __exit__(self, exc_type, exc_val, exc_tb):
         if hasattr(self, 'conn') and self.conn:
             db_pool.putconn(self.conn)
@@ -54,16 +52,28 @@ def init_db():
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        # ── NEW: match history table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS match_history (
+                id SERIAL PRIMARY KEY,
+                discord_id TEXT NOT NULL,
+                kills INTEGER NOT NULL DEFAULT 0,
+                match_date TEXT NOT NULL,
+                logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         conn.commit()
+
+# ── ALL EXISTING FUNCTIONS (unchanged) ────────────────────
 
 def set_admin_role(role_id: int):
     with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO config (key, value) 
-            VALUES (%s, %s) 
+            INSERT INTO config (key, value)
+            VALUES (%s, %s)
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-        ''', (str(role_id), str(role_id)))
+        ''', ('wow_manager_role', str(role_id)))
         conn.commit()
 
 def get_admin_role():
@@ -83,7 +93,7 @@ def add_match_stats(player_kills):
             cursor.execute('SELECT 1 FROM players WHERE discord_id = %s', (str(discord_id),))
             if cursor.fetchone():
                 cursor.execute('''
-                    UPDATE players 
+                    UPDATE players
                     SET weekly_matches = weekly_matches + 1,
                         lifetime_matches = lifetime_matches + 1,
                         weekly_kills = weekly_kills + %s,
@@ -150,6 +160,14 @@ def set_team(discord_id, team):
             return True
         return False
 
+def reset_overall():
+    """Zero out all lifetime stats and clear match history. Weekly untouched."""
+    with DBConnection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE players SET lifetime_matches = 0, lifetime_kills = 0')
+        cursor.execute('DELETE FROM match_history')
+        conn.commit()
+
 def get_weekly_leaderboard():
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -160,7 +178,6 @@ def get_weekly_leaderboard():
             ORDER BY team_name, weekly_kills DESC
         ''')
         rows = cursor.fetchall()
-        
     teams = {}
     for row in rows:
         team = row['team_name']
@@ -175,7 +192,6 @@ def get_weekly_leaderboard():
             "kills": kills,
             "avg": avg
         })
-    # ensure sorting within teams by kills DESC
     for t in teams:
         teams[t].sort(key=lambda x: x['kills'], reverse=True)
     return teams
@@ -190,7 +206,6 @@ def get_lifetime_leaderboard():
             ORDER BY lifetime_kills DESC
         ''')
         rows = cursor.fetchall()
-        
     players = []
     for row in rows:
         matches = row['lifetime_matches']
@@ -203,6 +218,236 @@ def get_lifetime_leaderboard():
             "avg": avg
         })
     return players
+
+# ══════════════════════════════════════════════════════════
+#   NEW: MATCH HISTORY
+# ══════════════════════════════════════════════════════════
+
+def log_match_history(player_kills: list, match_date: str):
+    """Log per-match kills into match_history for a given date."""
+    with DBConnection() as conn:
+        cursor = conn.cursor()
+        for discord_id, kills in player_kills:
+            cursor.execute('SELECT 1 FROM players WHERE discord_id = %s', (str(discord_id),))
+            if cursor.fetchone():
+                cursor.execute(
+                    'INSERT INTO match_history (discord_id, kills, match_date) VALUES (%s, %s, %s)',
+                    (str(discord_id), kills, match_date)
+                )
+        conn.commit()
+
+def get_match_history(limit: int = 5) -> list:
+    """Returns last N match entries grouped by logged_at timestamp."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        # Get distinct match sessions (group by date + minute logged)
+        cursor.execute('''
+            SELECT
+                mh.match_date,
+                mh.logged_at,
+                p.bgmi_ign,
+                mh.kills
+            FROM match_history mh
+            JOIN players p ON p.discord_id = mh.discord_id
+            ORDER BY mh.logged_at DESC
+            LIMIT %s
+        ''', (limit * 20,))  # fetch enough rows
+        rows = cursor.fetchall()
+
+    # Group by (match_date, minute) to reconstruct sessions
+    from collections import OrderedDict
+    sessions = OrderedDict()
+    for row in rows:
+        key = row['match_date'] + '_' + row['logged_at'].strftime('%H:%M')
+        if key not in sessions:
+            sessions[key] = {
+                'date': row['match_date'],
+                'logged_at': row['logged_at'].strftime('%d %b %Y %H:%M'),
+                'players': []
+            }
+        sessions[key]['players'].append({
+            'ign': row['bgmi_ign'],
+            'kills': row['kills']
+        })
+
+    # Sort each session players by kills desc
+    result = []
+    for s in sessions.values():
+        s['players'].sort(key=lambda x: x['kills'], reverse=True)
+        result.append(s)
+        if len(result) >= limit:
+            break
+    return result
+
+# ══════════════════════════════════════════════════════════
+#   NEW: TEAM VS TEAM
+# ══════════════════════════════════════════════════════════
+
+def get_team_stats() -> list:
+    """Returns weekly stats grouped per team (non-Bench)."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('''
+            SELECT
+                team_name,
+                COUNT(*) AS player_count,
+                SUM(weekly_kills) AS total_kills,
+                SUM(weekly_matches) AS total_matches
+            FROM players
+            WHERE LOWER(team_name) != 'bench'
+            GROUP BY team_name
+            ORDER BY total_kills DESC
+        ''')
+        rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        matches = row['total_matches'] or 0
+        kills   = row['total_kills'] or 0
+        result.append({
+            'team':    row['team_name'],
+            'players': row['player_count'],
+            'kills':   kills,
+            'matches': matches,
+            'avg':     round(kills / matches, 2) if matches > 0 else 0.0
+        })
+    return result
+
+# ══════════════════════════════════════════════════════════
+#   NEW: PERSONAL STATS
+# ══════════════════════════════════════════════════════════
+
+def get_personal_stats(discord_id: str) -> dict | None:
+    """Returns full stats for a single player including lifetime rank."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('SELECT * FROM players WHERE discord_id = %s', (str(discord_id),))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        player = dict(row)
+
+        # Get lifetime rank
+        cursor.execute('''
+            SELECT COUNT(*) + 1 AS rank
+            FROM players
+            WHERE lifetime_kills > %s
+        ''', (player['lifetime_kills'],))
+        rank_row = cursor.fetchone()
+        player['lifetime_rank'] = rank_row['rank'] if rank_row else '?'
+
+        # Best single match kills
+        cursor.execute('''
+            SELECT MAX(kills) AS best
+            FROM match_history
+            WHERE discord_id = %s
+        ''', (str(discord_id),))
+        best_row = cursor.fetchone()
+        player['best_match'] = best_row['best'] if best_row and best_row['best'] else 0
+
+    l_matches = player['lifetime_matches'] or 0
+    l_kills   = player['lifetime_kills'] or 0
+    w_matches = player['weekly_matches'] or 0
+    w_kills   = player['weekly_kills'] or 0
+
+    return {
+        'ign':            player['bgmi_ign'],
+        'team':           player['team_name'],
+        'lifetime_rank':  player['lifetime_rank'],
+        'lifetime_kills': l_kills,
+        'lifetime_matches': l_matches,
+        'lifetime_avg':   round(l_kills / l_matches, 2) if l_matches > 0 else 0.0,
+        'weekly_kills':   w_kills,
+        'weekly_matches': w_matches,
+        'weekly_avg':     round(w_kills / w_matches, 2) if w_matches > 0 else 0.0,
+        'best_match':     player['best_match'],
+    }
+
+# ══════════════════════════════════════════════════════════
+#   NEW: WEEKLY WINNER
+# ══════════════════════════════════════════════════════════
+
+def get_weekly_winner() -> dict | None:
+    """Returns the player with highest weekly kills."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('''
+            SELECT bgmi_ign, team_name, weekly_kills, weekly_matches
+            FROM players
+            WHERE weekly_kills > 0
+            ORDER BY weekly_kills DESC
+            LIMIT 1
+        ''')
+        row = cursor.fetchone()
+    if not row:
+        return None
+    matches = row['weekly_matches'] or 0
+    kills   = row['weekly_kills'] or 0
+    return {
+        'ign':     row['bgmi_ign'],
+        'team':    row['team_name'],
+        'kills':   kills,
+        'matches': matches,
+        'avg':     round(kills / matches, 2) if matches > 0 else 0.0
+    }
+
+# ══════════════════════════════════════════════════════════
+#   NEW: DAILY MVP
+# ══════════════════════════════════════════════════════════
+
+def get_daily_mvp(date: str) -> dict | None:
+    """Returns player with highest total kills on the given date."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('''
+            SELECT
+                p.bgmi_ign,
+                p.team_name,
+                mh.discord_id,
+                SUM(mh.kills)  AS total_kills,
+                COUNT(mh.id)   AS matches_today
+            FROM match_history mh
+            JOIN players p ON p.discord_id = mh.discord_id
+            WHERE mh.match_date = %s
+            GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
+            ORDER BY total_kills DESC, matches_today DESC
+            LIMIT 1
+        ''', (date,))
+        row = cursor.fetchone()
+    if not row:
+        return None
+    return {
+        'ign':     row['bgmi_ign'],
+        'team':    row['team_name'],
+        'kills':   row['total_kills'],
+        'matches': row['matches_today'],
+    }
+
+def get_daily_summary(date: str) -> list:
+    """Returns all players' kills for a given date, sorted by kills desc."""
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('''
+            SELECT
+                p.bgmi_ign,
+                p.team_name,
+                SUM(mh.kills)  AS total_kills,
+                COUNT(mh.id)   AS matches_today
+            FROM match_history mh
+            JOIN players p ON p.discord_id = mh.discord_id
+            WHERE mh.match_date = %s
+            GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
+            ORDER BY total_kills DESC
+        ''', (date,))
+        rows = cursor.fetchall()
+    return [
+        {
+            'ign':     row['bgmi_ign'],
+            'team':    row['team_name'],
+            'kills':   row['total_kills'],
+            'matches': row['matches_today'],
+        }
+        for row in rows
+    ]
 
 if db_pool:
     init_db()

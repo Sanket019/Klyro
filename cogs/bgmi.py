@@ -1,11 +1,12 @@
 import discord
 from discord.ext import commands
 from discord import Member
+from datetime import datetime, timezone
 import database as db
 
 # ── Change these to match your server ─────────────────────
-ADMIN_ROLE = "Scrim Manager"   # Role name that can use admin commands
-EMBED_COLOR = 0xa855f7         # Neon purple — matches Klyro theme
+ADMIN_ROLE = "Scrim Manager"
+EMBED_COLOR = 0xa855f7
 ERROR_COLOR = 0xff4757
 SUCCESS_COLOR = 0x00ff88
 
@@ -23,7 +24,7 @@ def make_row(rank: int, ign: str, matches: int, kills: int, avg: float) -> str:
 
 
 # ══════════════════════════════════════════════════════════
-#   COG
+#   PERMISSION CHECK
 # ══════════════════════════════════════════════════════════
 
 def is_admin_check():
@@ -41,6 +42,11 @@ def is_admin_check():
             raise commands.MissingRole(ADMIN_ROLE)
     return commands.check(predicate)
 
+
+# ══════════════════════════════════════════════════════════
+#   COG
+# ══════════════════════════════════════════════════════════
+
 class BGMICog(commands.Cog, name="BGMI"):
     """BGMI Clan Leaderboard System for Klyro Bot"""
 
@@ -53,10 +59,6 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="addmatchstats")
     @is_admin_check()
     async def add_match_stats(self, ctx: commands.Context, *args):
-        """
-        Log match stats for multiple players at once.
-        Usage: !addmatchstats @player1 kills1 @player2 kills2 ...
-        """
         if len(args) == 0 or len(args) % 2 != 0:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
@@ -71,20 +73,14 @@ class BGMICog(commands.Cog, name="BGMI"):
         player_kills = []
         errors = []
 
-        # Parse pairs: (member, kills)
         for i in range(0, len(args), 2):
             raw_mention = args[i]
             raw_kills   = args[i + 1]
-
-            # Resolve member
             try:
-                # Try to convert mention/ID to Member
                 member = await commands.MemberConverter().convert(ctx, raw_mention)
             except commands.BadArgument:
                 errors.append(f"• Could not find player: `{raw_mention}`")
                 continue
-
-            # Validate kills
             try:
                 kills = int(raw_kills)
                 if kills < 0:
@@ -92,24 +88,20 @@ class BGMICog(commands.Cog, name="BGMI"):
             except ValueError:
                 errors.append(f"• Invalid kills value `{raw_kills}` for {member.display_name}")
                 continue
-
             player_kills.append((str(member.id), kills))
 
         if not player_kills:
-            embed = discord.Embed(
+            return await ctx.send(embed=discord.Embed(
                 description="❌ No valid player-kill pairs found.",
                 color=ERROR_COLOR
-            )
-            return await ctx.send(embed=embed)
+            ))
 
-        # Write to DB
+        # Write to DB — stats + match history
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         not_found = db.add_match_stats(player_kills)
+        db.log_match_history(player_kills, today)
 
-        # Build response embed
-        embed = discord.Embed(
-            title="✅ Stats Successfully Entered Boss",
-            color=SUCCESS_COLOR
-        )
+        embed = discord.Embed(title="✅ Stats Successfully Entered Boss", color=SUCCESS_COLOR)
 
         logged_lines = []
         for discord_id, kills in player_kills:
@@ -124,7 +116,6 @@ class BGMICog(commands.Cog, name="BGMI"):
                 value="\n".join(logged_lines),
                 inline=False
             )
-
         if not_found:
             embed.add_field(
                 name="⚠️ Not in database (skipped)",
@@ -132,13 +123,8 @@ class BGMICog(commands.Cog, name="BGMI"):
                       + "\n*Use `!manageteam add @player IGN` to register them first.*",
                 inline=False
             )
-
         if errors:
-            embed.add_field(
-                name="❌ Errors",
-                value="\n".join(errors),
-                inline=False
-            )
+            embed.add_field(name="❌ Errors", value="\n".join(errors), inline=False)
 
         embed.set_footer(text="Both Weekly & Overall stats updated.")
         await ctx.send(embed=embed)
@@ -149,9 +135,6 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="resetweekly")
     @is_admin_check()
     async def reset_weekly(self, ctx: commands.Context):
-        """Wipe all weekly stats. Overall stats untouched."""
-
-        # Confirmation prompt
         confirm_embed = discord.Embed(
             title="⚠️ Confirm Weekly Reset",
             description=(
@@ -187,106 +170,119 @@ class BGMICog(commands.Cog, name="BGMI"):
             await msg.edit(embed=discord.Embed(description="❌ Weekly reset cancelled.", color=ERROR_COLOR))
 
     # ══════════════════════════════════════════════════════
+    #   !resetoverall
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="resetoverall")
+    @commands.has_permissions(administrator=True)
+    async def reset_overall(self, ctx: commands.Context):
+        """Wipe all lifetime stats and match history. Strictly Admin only."""
+        confirm_embed = discord.Embed(
+            title="⚠️ Confirm Overall Reset",
+            description=(
+                "**This will permanently delete:**\n"
+                "• All **lifetime kills & matches** for every player\n"
+                "• Entire **match history** log\n\n"
+                "Weekly stats will **not** be affected.\n"
+                "**This cannot be undone.**\n\n"
+                "React with ✅ to confirm or ❌ to cancel."
+            ),
+            color=0xff4757
+        )
+        msg = await ctx.send(embed=confirm_embed)
+        await msg.add_reaction("✅")
+        await msg.add_reaction("❌")
+
+        def check(reaction, user):
+            return user == ctx.author and str(reaction.emoji) in ["✅", "❌"] and reaction.message.id == msg.id
+
+        try:
+            reaction, _ = await self.bot.wait_for("reaction_add", timeout=30.0, check=check)
+        except TimeoutError:
+            await msg.edit(embed=discord.Embed(
+                description="⏰ Reset cancelled — timed out.", color=ERROR_COLOR))
+            return
+
+        if str(reaction.emoji) == "✅":
+            db.reset_overall()
+            embed = discord.Embed(
+                title="🗑️ Overall Stats Reset",
+                description=(
+                    "All **lifetime kills, matches** and **match history** have been permanently deleted.\n"
+                    "Weekly stats remain unchanged."
+                ),
+                color=SUCCESS_COLOR
+            )
+            embed.set_footer(text=f"Reset by {ctx.author.display_name}")
+            await msg.edit(embed=embed)
+        else:
+            await msg.edit(embed=discord.Embed(
+                description="❌ Overall reset cancelled.", color=ERROR_COLOR))
+
+    # ══════════════════════════════════════════════════════
     #   !manageteam [action] @player [value]
     # ══════════════════════════════════════════════════════
     @commands.command(name="manageteam")
     @is_admin_check()
     async def manage_team(self, ctx: commands.Context, action: str, member: Member, *, value: str = None):
-        """
-        Manage player registrations.
-        Actions:
-          add        @player IGN [team]   — Register new player
-          remove     @player              — Remove player from DB
-          update_ign @player NewIGN       — Update in-game name
-          set_team   @player TeamName     — Move player to a team
-        """
         action = action.lower()
         discord_id = str(member.id)
 
-        # ── ADD ──────────────────────────────────────────
         if action == "add":
             if not value:
                 return await ctx.send(embed=discord.Embed(
-                    description="❌ Usage: `!manageteam add @player IGN [TeamName]`",
-                    color=ERROR_COLOR
-                ))
-
+                    description="❌ Usage: `!manageteam add @player IGN [TeamName]`", color=ERROR_COLOR))
             parts = value.split()
             ign  = parts[0]
             team = " ".join(parts[1:]) if len(parts) > 1 else "Bench"
-
             success = db.add_player(discord_id, ign, team)
             if success:
-                embed = discord.Embed(
-                    title="✅ Player Added",
-                    color=SUCCESS_COLOR
-                )
+                embed = discord.Embed(title="✅ Player Added", color=SUCCESS_COLOR)
                 embed.add_field(name="Discord", value=member.mention, inline=True)
                 embed.add_field(name="IGN",     value=ign,            inline=True)
                 embed.add_field(name="Team",    value=team,           inline=True)
             else:
-                embed = discord.Embed(
-                    description=f"❌ {member.mention} is already registered.",
-                    color=ERROR_COLOR
-                )
+                embed = discord.Embed(description=f"❌ {member.mention} is already registered.", color=ERROR_COLOR)
             await ctx.send(embed=embed)
 
-        # ── REMOVE ───────────────────────────────────────
         elif action == "remove":
             success = db.remove_player(discord_id)
             if success:
                 embed = discord.Embed(
                     title="🗑️ Player Removed",
                     description=f"{member.mention} and all their stats have been deleted.",
-                    color=SUCCESS_COLOR
-                )
+                    color=SUCCESS_COLOR)
             else:
-                embed = discord.Embed(
-                    description=f"❌ {member.mention} is not in the database.",
-                    color=ERROR_COLOR
-                )
+                embed = discord.Embed(description=f"❌ {member.mention} is not in the database.", color=ERROR_COLOR)
             await ctx.send(embed=embed)
 
-        # ── UPDATE IGN ───────────────────────────────────
         elif action == "update_ign":
             if not value:
                 return await ctx.send(embed=discord.Embed(
-                    description="❌ Usage: `!manageteam update_ign @player NewIGN`",
-                    color=ERROR_COLOR
-                ))
+                    description="❌ Usage: `!manageteam update_ign @player NewIGN`", color=ERROR_COLOR))
             success = db.update_ign(discord_id, value.strip())
             if success:
                 embed = discord.Embed(
                     title="✏️ IGN Updated",
                     description=f"{member.mention}'s IGN → **{value.strip()}**",
-                    color=SUCCESS_COLOR
-                )
+                    color=SUCCESS_COLOR)
             else:
                 embed = discord.Embed(
                     description=f"❌ {member.mention} not found. Register first with `!manageteam add`.",
-                    color=ERROR_COLOR
-                )
+                    color=ERROR_COLOR)
             await ctx.send(embed=embed)
 
-        # ── SET TEAM ─────────────────────────────────────
         elif action == "set_team":
             if not value:
                 return await ctx.send(embed=discord.Embed(
-                    description="❌ Usage: `!manageteam set_team @player TeamName`\nExample: `!manageteam set_team @Kohli Team Alpha`",
-                    color=ERROR_COLOR
-                ))
+                    description="❌ Usage: `!manageteam set_team @player TeamName`", color=ERROR_COLOR))
             success = db.set_team(discord_id, value.strip())
             if success:
                 embed = discord.Embed(
                     title="🏷️ Team Updated",
                     description=f"{member.mention} → **{value.strip()}**",
-                    color=SUCCESS_COLOR
-                )
+                    color=SUCCESS_COLOR)
             else:
-                embed = discord.Embed(
-                    description=f"❌ {member.mention} not found.",
-                    color=ERROR_COLOR
-                )
+                embed = discord.Embed(description=f"❌ {member.mention} not found.", color=ERROR_COLOR)
             await ctx.send(embed=embed)
 
         else:
@@ -299,8 +295,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                     "• `update_ign @player NewIGN`\n"
                     "• `set_team @player TeamName`"
                 ),
-                color=ERROR_COLOR
-            )
+                color=ERROR_COLOR)
             await ctx.send(embed=embed)
 
     # ══════════════════════════════════════════════════════
@@ -309,32 +304,22 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="leaderboard", aliases=["lb"])
     async def leaderboard(self, ctx: commands.Context, mode: str = "weekly"):
         mode = mode.lower()
-
         if mode == "weekly":
             await self._send_weekly_leaderboard(ctx)
         elif mode in ("lifetime", "overall", "all"):
             await self._send_lifetime_leaderboard(ctx)
         else:
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description="❌ Usage: `!leaderboard weekly` or `!leaderboard overall`",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
 
-    # ── Weekly leaderboard ───────────────────────────────
     async def _send_weekly_leaderboard(self, ctx: commands.Context):
         teams = db.get_weekly_leaderboard()
-
         if not teams:
             return await ctx.send(embed=discord.Embed(
-                description="📭 No players in the database.",
-                color=ERROR_COLOR
-            ))
+                description="📭 No players in the database.", color=ERROR_COLOR))
 
-        embed = discord.Embed(
-            title="🎮 WoW Weekly Leaderboard",
-            color=EMBED_COLOR
-        )
+        embed = discord.Embed(title="🎮 WoW Weekly Leaderboard", color=EMBED_COLOR)
 
         for team_name, players in teams.items():
             lines = []
@@ -356,7 +341,6 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         total_matches = sum(p["matches"] for pl in teams.values() for p in pl)
         total_players = sum(len(v) for v in teams.values())
-
         embed.set_footer(
             text=f"👥 {total_players} players  •  Total matches tracked: {total_matches // max(total_players, 1)}",
             icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
@@ -364,20 +348,13 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
 
-    # ── Lifetime leaderboard ─────────────────────────────
     async def _send_lifetime_leaderboard(self, ctx: commands.Context):
         players = db.get_lifetime_leaderboard()
-
         if not players:
             return await ctx.send(embed=discord.Embed(
-                description="📭 No players in the database.",
-                color=ERROR_COLOR
-            ))
+                description="📭 No players in the database.", color=ERROR_COLOR))
 
-        embed = discord.Embed(
-            title="👑 WoW Overall Leaderboard",
-            color=0xffd166  # gold for overall
-        )
+        embed = discord.Embed(title="👑 WoW Overall Leaderboard", color=0x23A55A)
 
         lines = []
         for rank, p in enumerate(players, start=1):
@@ -386,15 +363,12 @@ class BGMICog(commands.Cog, name="BGMI"):
             line  = f"{medal} `{ign}  ` — `M: {p['matches']} `  `K: {p['kills']} `  `AVG: {p['avg']:.2f} `"
             lines.append(line)
             lines.append("")
-
-            if len(lines) == 10:
-                embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
+            if len(lines) >= 20:
+                embed.add_field(name="\u200b", value="\n".join(lines).rstrip(), inline=False)
                 lines = []
-
         if lines:
-            embed.add_field(name="\u200b", value="\n".join(lines), inline=False)
+            embed.add_field(name="\u200b", value="\n".join(lines).rstrip(), inline=False)
 
-        total_kills = sum(p["kills"] for p in players)
         embed.set_footer(
             text=f"👥 {len(players)} players",
             icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
@@ -419,20 +393,264 @@ class BGMICog(commands.Cog, name="BGMI"):
             await ctx.send("Usage: `!assign wow manager @role`")
 
     # ══════════════════════════════════════════════════════
+    #   NEW: !matchhistory [n]
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="matchhistory", aliases=["mh"])
+    async def match_history(self, ctx: commands.Context, limit: int = 5):
+        """Show last N match sessions. Usage: !matchhistory [5]"""
+        if limit < 1 or limit > 20:
+            limit = 5
+
+        sessions = db.get_match_history(limit)
+        if not sessions:
+            return await ctx.send(embed=discord.Embed(
+                description="📭 No match history found.", color=ERROR_COLOR))
+
+        embed = discord.Embed(
+            title="📜 Match History",
+            description=f"Last **{len(sessions)}** match session(s)",
+            color=EMBED_COLOR
+        )
+
+        for i, session in enumerate(sessions, start=1):
+            lines = []
+            for rank, p in enumerate(session['players'], start=1):
+                medal = MEDALS.get(rank, f"`#{rank}`")
+                lines.append(f"{medal} **{p['ign']}** — `K: {p['kills']}`")
+
+            embed.add_field(
+                name=f"Match {i}  •  {session['logged_at']}",
+                value="\n".join(lines) if lines else "*No data*",
+                inline=False
+            )
+
+        embed.set_footer(text="Klyro Bot • WoW Match History")
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
+    #   NEW: !teamstats
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="teamstats", aliases=["tvt"])
+    async def team_stats(self, ctx: commands.Context):
+        """Team vs Team weekly scoreboard."""
+        teams = db.get_team_stats()
+        if not teams:
+            return await ctx.send(embed=discord.Embed(
+                description="📭 No team data found.", color=ERROR_COLOR))
+
+        embed = discord.Embed(
+            title="⚔️ Team vs Team — Weekly",
+            description="Comparing all teams by weekly performance",
+            color=EMBED_COLOR
+        )
+
+        TEAM_ICONS = ["🔴", "🔵", "🟢", "🟡"]
+        for i, team in enumerate(teams):
+            icon = TEAM_ICONS[i] if i < len(TEAM_ICONS) else "⚪"
+            rank_label = "🏆 Leading" if i == 0 else f"#{i+1}"
+            embed.add_field(
+                name=f"{icon} {team['team']}  —  {rank_label}",
+                value=(
+                    f"`Total Kills  :` **{team['kills']}**\n"
+                    f"`Total Matches:` **{team['matches']}**\n"
+                    f"`Avg Kills/M  :` **{team['avg']}**\n"
+                    f"`Players      :` **{team['players']}**"
+                ),
+                inline=True
+            )
+
+        if len(teams) == 2:
+            diff = abs(teams[0]['kills'] - teams[1]['kills'])
+            leader = teams[0]['team']
+            embed.add_field(
+                name="\u200b",
+                value=f"**{leader}** leads by **{diff}** kills this week",
+                inline=False
+            )
+
+        embed.set_footer(text="Klyro Bot • Weekly Team Standings")
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
+    #   NEW: !stats @player
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="stats")
+    async def player_stats(self, ctx: commands.Context, member: Member = None):
+        """Personal stats card. Usage: !stats @player or !stats (for yourself)"""
+        if member is None:
+            member = ctx.author
+
+        stats = db.get_personal_stats(str(member.id))
+        if not stats:
+            return await ctx.send(embed=discord.Embed(
+                description=f"❌ {member.mention} is not registered in the database.",
+                color=ERROR_COLOR))
+
+        embed = discord.Embed(
+            title=f"📊 {stats['ign']}  —  Stats Card",
+            color=EMBED_COLOR
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+
+        embed.add_field(name="Team",          value=f"`{stats['team']}`",           inline=True)
+        embed.add_field(name="Overall Rank",  value=f"`#{stats['lifetime_rank']}`", inline=True)
+        embed.add_field(name="Best Match",    value=f"`{stats['best_match']} kills`", inline=True)
+
+        embed.add_field(
+            name="📅 This Week",
+            value=(
+                f"`Matches :` **{stats['weekly_matches']}**\n"
+                f"`Kills   :` **{stats['weekly_kills']}**\n"
+                f"`AVG     :` **{stats['weekly_avg']}**"
+            ),
+            inline=True
+        )
+        embed.add_field(
+            name="🏆 Lifetime",
+            value=(
+                f"`Matches :` **{stats['lifetime_matches']}**\n"
+                f"`Kills   :` **{stats['lifetime_kills']}**\n"
+                f"`AVG     :` **{stats['lifetime_avg']}**"
+            ),
+            inline=True
+        )
+
+        embed.set_footer(
+            text="Klyro Bot • Player Stats",
+            icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
+        )
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
+    #   NEW: !weekwinner
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="weekwinner", aliases=["ww"])
+    async def week_winner(self, ctx: commands.Context):
+        """Crown the weekly top killer. Run before !resetweekly."""
+        winner = db.get_weekly_winner()
+        if not winner:
+            return await ctx.send(embed=discord.Embed(
+                description="📭 No weekly data found yet.", color=ERROR_COLOR))
+
+        embed = discord.Embed(
+            title="🏆 Weekly Winner",
+            description=f"This week's top performer is...",
+            color=0xffd166
+        )
+        embed.add_field(name="\u200b", value=(
+            f"# 🥇  {winner['ign']}\n"
+            f"**Team:** {winner['team']}\n\n"
+            f"`K: {winner['kills']} `  `M: {winner['matches']} `  `AVG: {winner['avg']}`"
+        ), inline=False)
+        embed.set_footer(text="Klyro Bot • Weekly Winner  |  Run !resetweekly to start a new week")
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
+    #   NEW: !today_mvp  &  !today_summary
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="today_mvp")
+    async def today_mvp(self, ctx: commands.Context, date: str = None):
+        """MVP for today (or a specific date). Usage: !today_mvp [YYYY-MM-DD]"""
+        if date is None:
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        else:
+            try:
+                datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                return await ctx.send(embed=discord.Embed(
+                    description="❌ Invalid format. Use `!today_mvp YYYY-MM-DD`",
+                    color=ERROR_COLOR))
+
+        mvp = db.get_daily_mvp(date)
+        if not mvp:
+            return await ctx.send(embed=discord.Embed(
+                description=f"📭 No match data found for **{date}**.", color=ERROR_COLOR))
+
+        display_date = datetime.strptime(date, "%Y-%m-%d").strftime("%d %B %Y")
+        embed = discord.Embed(
+            title=f"🏆 MVP — {display_date}",
+            color=0xffd166
+        )
+        embed.add_field(name="\u200b", value=(
+            f"# 🥇  {mvp['ign']}\n"
+            f"**Team:** {mvp['team']}\n\n"
+            f"`K: {mvp['kills']} `  `M: {mvp['matches']} `"
+        ), inline=False)
+        embed.set_footer(
+            text=f"Date: {date}  •  Klyro Bot",
+            icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
+        )
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    @commands.command(name="today_summary")
+    async def today_summary(self, ctx: commands.Context, date: str = None):
+        """Full kill summary for today (or a specific date). Usage: !today_summary [YYYY-MM-DD]"""
+        if date is None:
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        else:
+            try:
+                datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                return await ctx.send(embed=discord.Embed(
+                    description="❌ Invalid format. Use `!today_summary YYYY-MM-DD`",
+                    color=ERROR_COLOR))
+
+        summary = db.get_daily_summary(date)
+        if not summary:
+            return await ctx.send(embed=discord.Embed(
+                description=f"📭 No match data found for **{date}**.", color=ERROR_COLOR))
+
+        display_date = datetime.strptime(date, "%Y-%m-%d").strftime("%d %B %Y")
+        embed = discord.Embed(
+            title=f"📊 Day Summary — {display_date}",
+            color=EMBED_COLOR
+        )
+
+        lines = []
+        for rank, p in enumerate(summary, start=1):
+            medal = MEDALS.get(rank, f"`#{rank}`")
+            lines.append(f"{medal} **{p['ign']}** — `K: {p['kills']} `  `M: {p['matches']} `")
+            lines.append("")
+
+        embed.add_field(name="\u200b", value="\n".join(lines).rstrip(), inline=False)
+        embed.set_footer(
+            text=f"Date: {date}  •  Klyro Bot",
+            icon_url="https://sm.ign.com/ign_in/screenshot/default/battlegrounds-mobile-india-pre-register-battlegrounds-mobile_dvq9.png"
+        )
+        embed.timestamp = ctx.message.created_at
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
     #   !bgmihelp
     # ══════════════════════════════════════════════════════
     @commands.command(name="bgmihelp")
     async def bgmi_help(self, ctx: commands.Context):
-        embed = discord.Embed(
-            title="🎮 WoW Bot — Command Reference",
-            color=EMBED_COLOR
-        )
+        embed = discord.Embed(title="🎮 WoW Bot — Command Reference", color=EMBED_COLOR)
         embed.add_field(
             name="📊 Leaderboards (Everyone)",
             value=(
                 "`!leaderboard weekly` — Weekly stats grouped by team\n"
-                "`!leaderboard overall` — All-time kills ranked globally\n"
+                "`!leaderboard overall` — All-time kills \n"
                 "`!lb` — Shortcut for leaderboard"
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="🆕 New Commands (Everyone)",
+            value=(
+                "`!matchhistory [n]` — Last N match sessions (default 5)\n"
+                "`!mh` — Shortcut for match history\n"
+                "`!teamstats` — Team vs Team weekly scoreboard\n"
+                "`!tvt` — Shortcut for teamstats\n"
+                "`!stats @player` — Personal stats card\n"
+                "`!weekwinner` — Crown this week's top killer\n"
+                "`!today_mvp` — MVP of today\n"
+                "`!today_summary` — Full kill summary for today"
             ),
             inline=False
         )
@@ -442,6 +660,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 "`!assign wow manager @role` — Assign manager role (Admin only)\n"
                 "`!addmatchstats @p1 k1 @p2 k2 ...` — Log match kills\n"
                 "`!resetweekly` — Wipe weekly stats (with confirmation)\n"
+                "`!resetoverall` — Wipe lifetime stats + match history (Admin only)\n"
                 "`!manageteam add @p IGN [Team]` — Register player\n"
                 "`!manageteam remove @p` — Delete player\n"
                 "`!manageteam update_ign @p NewIGN` — Update IGN\n"
@@ -463,7 +682,6 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="dbstatus")
     @commands.has_permissions(administrator=True)
     async def db_status(self, ctx: commands.Context):
-        """Check the database connection status (Admin only)"""
         import os
         url = os.environ.get("DATABASE_URL")
         if not url:
@@ -496,7 +714,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.add_field(name="Connection Status", value="🟢 Connected" if connected else f"🔴 Failed: {error_msg}", inline=False)
         embed.add_field(name="Database Configuration", value=db_type, inline=False)
         embed.add_field(name="Database URL (Masked)", value=f"`{masked_url}`", inline=False)
-        
+
         if connected:
             try:
                 with db.DBConnection() as conn:
@@ -511,51 +729,41 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         await ctx.send(embed=embed)
 
+    # ── Error handlers ───────────────────────────────────
     @bgmi_help.error
     @add_match_stats.error
     @reset_weekly.error
+    @reset_overall.error
     @manage_team.error
     @assign_role.error
     @db_status.error
     async def bgmi_admin_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description="❌ You need Administrator permissions to use this command!",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
         elif isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
             admin_role_id = db.get_admin_role()
             role_mention = f"<@&{admin_role_id}>" if admin_role_id else f"`{ADMIN_ROLE}`"
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description=f"❌ You need the {role_mention} role (or Administrator) to use this command!",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
         elif isinstance(error, commands.MemberNotFound):
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description="❌ Could not find that member. Make sure to ping them correctly.",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
         elif isinstance(error, commands.RoleNotFound):
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description="❌ Could not find that role. Make sure to ping it correctly.",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
         elif isinstance(error, commands.BadArgument):
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description=f"❌ Invalid argument provided: {error}",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
         else:
-            embed = discord.Embed(
+            await ctx.send(embed=discord.Embed(
                 description=f"❌ An error occurred: {str(error)}",
-                color=ERROR_COLOR
-            )
-            await ctx.send(embed=embed)
+                color=ERROR_COLOR))
 
 
 # ── Cog loader ────────────────────────────────────────────
