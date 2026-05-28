@@ -371,7 +371,7 @@ def get_weekly_winner() -> dict | None:
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
         cursor.execute('''
-            SELECT bgmi_ign, team_name, weekly_kills, weekly_matches
+            SELECT discord_id, bgmi_ign, team_name, weekly_kills, weekly_matches
             FROM players
             WHERE weekly_kills > 0
             ORDER BY weekly_kills DESC
@@ -383,6 +383,7 @@ def get_weekly_winner() -> dict | None:
     matches = row['weekly_matches'] or 0
     kills   = row['weekly_kills'] or 0
     return {
+        'discord_id': row['discord_id'],
         'ign':     row['bgmi_ign'],
         'team':    row['team_name'],
         'kills':   kills,
@@ -416,6 +417,7 @@ def get_daily_mvp(date: str) -> dict | None:
     if not row:
         return None
     return {
+        'discord_id': row['discord_id'],
         'ign':     row['bgmi_ign'],
         'team':    row['team_name'],
         'kills':   row['total_kills'],

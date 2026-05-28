@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import Member
 from datetime import datetime, timezone
+import asyncio
 import database as db
 
 # ── Change these to match your server ─────────────────────
@@ -173,7 +174,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     #   !resetoverall
     # ══════════════════════════════════════════════════════
     @commands.command(name="resetoverall")
-    @commands.has_permissions(administrator=True)
+    @is_admin_check()
     async def reset_overall(self, ctx: commands.Context):
         """Wipe all lifetime stats and match history. Strictly Admin only."""
         confirm_embed = discord.Embed(
@@ -452,8 +453,8 @@ class BGMICog(commands.Cog, name="BGMI"):
             embed.add_field(
                 name=f"{icon} {team['team']}  —  {rank_label}",
                 value=(
-                    f"`Total Kills  :` **{team['kills']}**\n"
                     f"`Total Matches:` **{team['matches']}**\n"
+                    f"`Total Kills  :` **{team['kills']}**\n"
                     f"`Avg Kills/M  :` **{team['avg']}**\n"
                     f"`Players      :` **{team['players']}**"
                 ),
@@ -495,7 +496,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.set_thumbnail(url=member.display_avatar.url)
 
         embed.add_field(name="Team",          value=f"`{stats['team']}`",           inline=True)
-        embed.add_field(name="Overall Rank",  value=f"`#{stats['lifetime_rank']}`", inline=True)
+        embed.add_field(name="Career Rank",   value=f"`#{stats['lifetime_rank']}`", inline=True)
         embed.add_field(name="Best Match",    value=f"`{stats['best_match']} kills`", inline=True)
 
         embed.add_field(
@@ -508,7 +509,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             inline=True
         )
         embed.add_field(
-            name="🏆 Lifetime",
+            name="🏆 Career",
             value=(
                 f"`Matches :` **{stats['lifetime_matches']}**\n"
                 f"`Kills   :` **{stats['lifetime_kills']}**\n"
@@ -540,14 +541,32 @@ class BGMICog(commands.Cog, name="BGMI"):
             description=f"This week's top performer is...",
             color=0xffd166
         )
+
+        user_id = int(winner['discord_id'])
+        user = self.bot.get_user(user_id)
+        if not user:
+            try:
+                user = await self.bot.fetch_user(user_id)
+            except discord.NotFound:
+                user = None
+
+        if user:
+            embed.set_thumbnail(url=user.display_avatar.url)
+
         embed.add_field(name="\u200b", value=(
             f"# 🥇  {winner['ign']}\n"
             f"**Team:** {winner['team']}\n\n"
-            f"`K: {winner['kills']} `  `M: {winner['matches']} `  `AVG: {winner['avg']}`"
+            f"`M: {winner['matches']} `  `K: {winner['kills']} `  `AVG: {winner['avg']}`"
         ), inline=False)
         embed.set_footer(text="Klyro Bot • Weekly Winner  |  Run !resetweekly to start a new week")
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
+
+        await asyncio.sleep(10)
+        if str(ctx.author.id) == str(winner['discord_id']):
+            await ctx.send(f"Practice like you have never won and play like you have never lost 🫡.")
+        else:
+            await ctx.send(f"BSDK tere liye sapna hai ye Jhat ke baal 😂 mdc muh me lele ab {winner['ign']} ka.")
 
     # ══════════════════════════════════════════════════════
     #   NEW: !today_mvp  &  !today_summary
@@ -578,7 +597,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.add_field(name="\u200b", value=(
             f"# 🥇  {mvp['ign']}\n"
             f"**Team:** {mvp['team']}\n\n"
-            f"`K: {mvp['kills']} `  `M: {mvp['matches']} `"
+            f"`M: {mvp['matches']} `  `K: {mvp['kills']} `"
         ), inline=False)
         embed.set_footer(
             text=f"Date: {date}  •  Klyro Bot",
@@ -586,6 +605,12 @@ class BGMICog(commands.Cog, name="BGMI"):
         )
         embed.timestamp = ctx.message.created_at
         await ctx.send(embed=embed)
+
+        await asyncio.sleep(10)
+        if str(ctx.author.id) == str(mvp['discord_id']):
+            await ctx.send(f"Aaj toh {ctx.author.name} ne maa hi chod di.")
+        else:
+            await ctx.send(f"kya re LODE {ctx.author.name} apna naam dhund rha tha kya grind kar bkl 😂.")
 
     @commands.command(name="today_summary")
     async def today_summary(self, ctx: commands.Context, date: str = None):
@@ -614,7 +639,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         lines = []
         for rank, p in enumerate(summary, start=1):
             medal = MEDALS.get(rank, f"`#{rank}`")
-            lines.append(f"{medal} **{p['ign']}** — `K: {p['kills']} `  `M: {p['matches']} `")
+            lines.append(f"{medal} **{p['ign']}** — `M: {p['matches']} `  `K: {p['kills']} `")
             lines.append("")
 
         embed.add_field(name="\u200b", value="\n".join(lines).rstrip(), inline=False)
@@ -635,22 +660,22 @@ class BGMICog(commands.Cog, name="BGMI"):
             name="📊 Leaderboards (Everyone)",
             value=(
                 "`!leaderboard weekly` — Weekly stats grouped by team\n"
-                "`!leaderboard overall` — All-time kills \n"
+                "`!leaderboard overall` — All-time Kills \n"
                 "`!lb` — Shortcut for leaderboard"
             ),
             inline=False
         )
         embed.add_field(
-            name="🆕 New Commands (Everyone)",
+            name="📈 Stats Commands (Everyone)",
             value=(
-                "`!matchhistory [n]` — Last N match sessions (default 5)\n"
-                "`!mh` — Shortcut for match history\n"
+                "`!stats @player` — Personal stats card\n"
                 "`!teamstats` — Team vs Team weekly scoreboard\n"
                 "`!tvt` — Shortcut for teamstats\n"
-                "`!stats @player` — Personal stats card\n"
                 "`!weekwinner` — Crown this week's top killer\n"
                 "`!today_mvp` — MVP of today\n"
-                "`!today_summary` — Full kill summary for today"
+                "`!today_summary` — Full kill summary for today\n"
+                "`!matchhistory [n]` — Last N match sessions (default 5)\n"
+                "`!mh` — Shortcut for match history"
             ),
             inline=False
         )
@@ -658,9 +683,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             name=f"⚙️ Admin Commands (`{ADMIN_ROLE}` only)",
             value=(
                 "`!assign wow manager @role` — Assign manager role (Admin only)\n"
-                "`!addmatchstats @p1 k1 @p2 k2 ...` — Log match kills\n"
-                "`!resetweekly` — Wipe weekly stats (with confirmation)\n"
-                "`!resetoverall` — Wipe lifetime stats + match history (Admin only)\n"
+                "`!addmatchstats @p1 k1 @p2 k2 ...` — Enter match kills\n"
                 "`!manageteam add @p IGN [Team]` — Register player\n"
                 "`!manageteam remove @p` — Delete player\n"
                 "`!manageteam update_ign @p NewIGN` — Update IGN\n"
@@ -671,6 +694,15 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed.add_field(
             name="📝 Team Names",
             value="Use exact team names like `Team Alpha`, `Team Bravo`, or `Bench`",
+            inline=False
+        )
+        embed.add_field(
+            name="⚠️ Danger Zone (System & Resets)",
+            value=(
+                "`!resetweekly` — Resets weekly stats (with confirmation)\n"
+                "`!resetoverall` — Resets lifetime stats + match history (with confirmation)\n"
+                "`!dbstatus` — Check database connection status (Admin only)"
+            ),
             inline=False
         )
         embed.set_footer(text="Klyro Bot • BGMI Module")
