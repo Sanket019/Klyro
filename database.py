@@ -193,9 +193,9 @@ def get_weekly_leaderboard(guild_id: str):
         cursor.execute('''
             SELECT bgmi_ign, team_name, weekly_matches, weekly_kills
             FROM players
-            WHERE weekly_matches > 0 OR weekly_kills > 0
+            WHERE guild_id = %s AND (weekly_matches > 0 OR weekly_kills > 0)
             ORDER BY team_name, weekly_kills DESC
-        ''')
+        ''', (guild_id,))
         rows = cursor.fetchall()
     teams = {}
     for row in rows:
@@ -221,9 +221,9 @@ def get_lifetime_leaderboard(guild_id: str):
         cursor.execute('''
             SELECT bgmi_ign, lifetime_matches, lifetime_kills
             FROM players
-            WHERE lifetime_matches > 0 OR lifetime_kills > 0
+            WHERE guild_id = %s AND (lifetime_matches > 0 OR lifetime_kills > 0)
             ORDER BY lifetime_kills DESC
-        ''')
+        ''', (guild_id,))
         rows = cursor.fetchall()
     players = []
     for row in rows:
@@ -267,10 +267,11 @@ def get_match_history(guild_id: str, limit: int = 5) -> list:
                 p.bgmi_ign,
                 mh.kills
             FROM match_history mh
-            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id
+            WHERE mh.guild_id = %s
             ORDER BY mh.logged_at DESC
             LIMIT %s
-        ''', (limit * 20,))  # fetch enough rows
+        ''', (guild_id, limit * 20))  # fetch enough rows
         rows = cursor.fetchall()
 
     # Group by (match_date, minute) to reconstruct sessions
@@ -313,10 +314,10 @@ def get_team_stats(guild_id: str) -> list:
                 SUM(weekly_kills) AS total_kills,
                 SUM(weekly_matches) AS total_matches
             FROM players
-            WHERE LOWER(team_name) != 'bench'
+            WHERE guild_id = %s AND LOWER(team_name) != 'bench'
             GROUP BY team_name
             ORDER BY total_kills DESC
-        ''')
+        ''', (guild_id,))
         rows = cursor.fetchall()
     result = []
     for row in rows:
@@ -392,10 +393,10 @@ def get_weekly_winner(guild_id: str) -> dict | None:
         cursor.execute('''
             SELECT discord_id, bgmi_ign, team_name, weekly_kills, weekly_matches
             FROM players
-            WHERE weekly_kills > 0
+            WHERE guild_id = %s AND weekly_kills > 0
             ORDER BY weekly_kills DESC
             LIMIT 1
-        ''')
+        ''', (guild_id,))
         row = cursor.fetchone()
     if not row:
         return None
@@ -426,12 +427,12 @@ def get_daily_mvp(guild_id: str, date: str) -> dict | None:
                 SUM(mh.kills)  AS total_kills,
                 COUNT(mh.id)   AS matches_today
             FROM match_history mh
-            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
-            WHERE mh.match_date = %s
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id
+            WHERE mh.guild_id = %s AND mh.match_date = %s
             GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
             ORDER BY total_kills DESC, matches_today DESC
             LIMIT 1
-        ''', (date,))
+        ''', (guild_id, date))
         row = cursor.fetchone()
     if not row:
         return None
@@ -454,11 +455,11 @@ def get_daily_summary(guild_id: str, date: str) -> list:
                 SUM(mh.kills)  AS total_kills,
                 COUNT(mh.id)   AS matches_today
             FROM match_history mh
-            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
-            WHERE mh.match_date = %s
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id
+            WHERE mh.guild_id = %s AND mh.match_date = %s
             GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
             ORDER BY total_kills DESC
-        ''', (date,))
+        ''', (guild_id, date))
         rows = cursor.fetchall()
     return [
         {

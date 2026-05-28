@@ -736,6 +736,57 @@ class BGMICog(commands.Cog, name="BGMI"):
         await ctx.send(embed=embed)
 
     # ══════════════════════════════════════════════════════
+    #   !playing
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="playing")
+    async def set_playing(self, ctx: commands.Context, team_name: str, p1: Member, p2: Member, p3: Member, p4: Member, p5: Member):
+        if not await self.check_admin(ctx): return
+        
+        discord_ids = [p1.id, p2.id, p3.id, p4.id, p5.id]
+        db.set_playing_lineup(str(ctx.guild.id), team_name, discord_ids)
+        
+        embed = discord.Embed(
+            title="✅ Playing 5 Lineup Set",
+            description=f"Successfully locked in the playing 5 for **{team_name}**.",
+            color=EMBED_COLOR
+        )
+        embed.add_field(name="Players", value=f"{p1.mention} {p2.mention} {p3.mention} {p4.mention} {p5.mention}")
+        await ctx.send(embed=embed)
+
+    @set_playing.error
+    async def set_playing_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, commands.BadArgument):
+            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing \"Team Name\" @p1 @p2 @p3 @p4 @p5`\nYou must mention exactly 5 players.")
+
+    # ══════════════════════════════════════════════════════
+    #   !team
+    # ══════════════════════════════════════════════════════
+    @commands.command(name="team")
+    async def view_teams(self, ctx: commands.Context):
+        lineups = db.get_all_playing_lineups(str(ctx.guild.id))
+        
+        if not lineups:
+            embed = discord.Embed(
+                title="👥 Today's Playing Lineups",
+                description="No playing lineups have been set for today yet.",
+                color=EMBED_COLOR
+            )
+            await ctx.send(embed=embed)
+            return
+
+        embed = discord.Embed(
+            title="👥 Today's Playing Lineups",
+            description="Active 5-man rosters for today's matches.",
+            color=EMBED_COLOR
+        )
+        
+        for team, players in lineups.items():
+            player_list = "\n".join([f"• `{p['ign']}` (<@{p['discord_id']}>)" for p in players])
+            embed.add_field(name=team, value=player_list, inline=True)
+            
+        await ctx.send(embed=embed)
+
+    # ══════════════════════════════════════════════════════
     #   !dbstatus
     # ══════════════════════════════════════════════════════
     @commands.command(name="dbstatus")
