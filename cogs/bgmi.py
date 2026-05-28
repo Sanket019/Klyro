@@ -143,7 +143,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 "Overall stats will **not** be affected.\n\n"
                 "React with ✅ to confirm or ❌ to cancel."
             ),
-            color=0xffd166
+            color=0x39ff14
         )
         msg = await ctx.send(embed=confirm_embed)
         await msg.add_reaction("✅")
@@ -355,7 +355,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             return await ctx.send(embed=discord.Embed(
                 description="📭 No players in the database.", color=ERROR_COLOR))
 
-        embed = discord.Embed(title="👑 WoW Overall Leaderboard", color=0x23A55A)
+        embed = discord.Embed(title="👑 WoW Overall Leaderboard", color=0x39ff14)
 
         lines = []
         for rank, p in enumerate(players, start=1):
@@ -539,7 +539,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed = discord.Embed(
             title="🏆 Weekly Winner",
             description=f"This week's top performer is...",
-            color=0xffd166
+            color=0x39ff14
         )
 
         user_id = int(winner['discord_id'])
@@ -564,9 +564,9 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         await asyncio.sleep(10)
         if str(ctx.author.id) == str(winner['discord_id']):
-            await ctx.send(f"Practice like you have never won and play like you have never lost 🫡.")
+            await ctx.send(f"{ctx.author.mention} Practice like you have never won and play like you have never lost 🫡.")
         else:
-            await ctx.send(f"BSDK tere liye sapna hai ye Jhat ke baal 😂 mdc muh me lele ab {winner['ign']} ka.")
+            await ctx.send(f"{ctx.author.mention} BSDK tere liye sapna hai ye Jhat ke baal 😂 mdc muh me lele ab {winner['ign']} ka.")
 
     # ══════════════════════════════════════════════════════
     #   NEW: !today_mvp  &  !today_summary
@@ -592,8 +592,20 @@ class BGMICog(commands.Cog, name="BGMI"):
         display_date = datetime.strptime(date, "%Y-%m-%d").strftime("%d %B %Y")
         embed = discord.Embed(
             title=f"🏆 MVP — {display_date}",
-            color=0xffd166
+            color=0x39ff14
         )
+
+        user_id = int(mvp['discord_id'])
+        user = self.bot.get_user(user_id)
+        if not user:
+            try:
+                user = await self.bot.fetch_user(user_id)
+            except discord.NotFound:
+                user = None
+
+        if user:
+            embed.set_thumbnail(url=user.display_avatar.url)
+
         embed.add_field(name="\u200b", value=(
             f"# 🥇  {mvp['ign']}\n"
             f"**Team:** {mvp['team']}\n\n"
@@ -608,9 +620,9 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         await asyncio.sleep(10)
         if str(ctx.author.id) == str(mvp['discord_id']):
-            await ctx.send(f"Aaj toh {ctx.author.name} ne maa hi chod di.")
+            await ctx.send(f"{ctx.author.mention} Aaj toh {ctx.author.display_name} ne maa hi chod di.")
         else:
-            await ctx.send(f"kya re LODE {ctx.author.name} apna naam dhund rha tha kya grind kar bkl 😂.")
+            await ctx.send(f"{ctx.author.mention} kya re LODE {ctx.author.display_name} apna naam dhund rha tha kya grind kar bkl 😂.")
 
     @commands.command(name="today_summary")
     async def today_summary(self, ctx: commands.Context, date: str = None):
