@@ -25,21 +25,32 @@ def init_db():
     if not db_pool: return
     with DBConnection() as conn:
         cursor = conn.cursor()
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='players' and column_name='guild_id';")
+        if not cursor.fetchone():
+            cursor.execute("DROP TABLE IF EXISTS players")
+            cursor.execute("DROP TABLE IF EXISTS config")
+            cursor.execute("DROP TABLE IF EXISTS match_history")
+            cursor.execute("DROP TABLE IF EXISTS playing_lineup")
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS players (
-                discord_id TEXT PRIMARY KEY,
+                guild_id TEXT NOT NULL,
+                discord_id TEXT NOT NULL,
                 bgmi_ign TEXT,
                 team_name TEXT,
                 weekly_matches INTEGER DEFAULT 0,
                 weekly_kills INTEGER DEFAULT 0,
                 lifetime_matches INTEGER DEFAULT 0,
-                lifetime_kills INTEGER DEFAULT 0
+                lifetime_kills INTEGER DEFAULT 0,
+                PRIMARY KEY (guild_id, discord_id)
             )
         ''')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS config (
-                key TEXT PRIMARY KEY,
-                value TEXT
+                guild_id TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT,
+                PRIMARY KEY (guild_id, key)
             )
         ''')
         cursor.execute('''
@@ -52,45 +63,53 @@ def init_db():
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        # ── NEW: match history table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS match_history (
                 id SERIAL PRIMARY KEY,
+                guild_id TEXT NOT NULL,
                 discord_id TEXT NOT NULL,
                 kills INTEGER NOT NULL DEFAULT 0,
                 match_date TEXT NOT NULL,
                 logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS playing_lineup (
+                guild_id TEXT NOT NULL,
+                team_name TEXT NOT NULL,
+                discord_id TEXT NOT NULL,
+                PRIMARY KEY (guild_id, team_name, discord_id)
+            )
+        ''')
         conn.commit()
 
 # ── ALL EXISTING FUNCTIONS (unchanged) ────────────────────
 
-def set_admin_role(role_id: int):
+def set_admin_role(guild_id: str, role_id: int):
     with DBConnection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO config (key, value)
             VALUES (%s, %s)
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-        ''', ('wow_manager_role', str(role_id)))
+        ''', (guild_id, 'wow_manager_role', str(role_id)))
         conn.commit()
 
-def get_admin_role():
+def get_admin_role(guild_id: str):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT value FROM config WHERE key = 'wow_manager_role'")
+        cursor.execute("SELECT value FROM config WHERE guild_id = %s AND key = 'wow_manager_role'", (guild_id,))
         row = cursor.fetchone()
         if row:
             return int(row[0])
         return None
 
-def add_match_stats(player_kills):
+def add_match_stats(guild_id: str, player_kills):
     not_found = []
     with DBConnection() as conn:
         cursor = conn.cursor()
         for discord_id, kills in player_kills:
-            cursor.execute('SELECT 1 FROM players WHERE discord_id = %s', (str(discord_id),))
+            cursor.execute('SELECT 1 FROM players WHERE guild_id = %s AND discord_id = %s', (guild_id, str(discord_id)))
             if cursor.fetchone():
                 cursor.execute('''
                     UPDATE players
@@ -99,76 +118,76 @@ def add_match_stats(player_kills):
                         weekly_kills = weekly_kills + %s,
                         lifetime_kills = lifetime_kills + %s
                     WHERE discord_id = %s
-                ''', (kills, kills, str(discord_id)))
+                ''', (kills, kills, guild_id, str(discord_id)))
             else:
                 not_found.append(str(discord_id))
         conn.commit()
     return not_found
 
-def get_player(discord_id):
+def get_player(guild_id: str, discord_id):
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
-        cursor.execute('SELECT * FROM players WHERE discord_id = %s', (str(discord_id),))
+        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
         row = cursor.fetchone()
         if row:
             return dict(row)
         return None
 
-def reset_weekly():
+def reset_weekly(guild_id: str):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET weekly_matches = 0, weekly_kills = 0')
+        cursor.execute('UPDATE players SET weekly_matches = 0, weekly_kills = 0 WHERE guild_id = %s', (guild_id,))
         conn.commit()
 
-def add_player(discord_id, ign, team):
+def add_player(guild_id: str, discord_id, ign, team):
     try:
         with DBConnection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO players (discord_id, bgmi_ign, team_name)
                 VALUES (%s, %s, %s)
-            ''', (str(discord_id), ign, team))
+            ''', (guild_id, str(discord_id), ign, team))
             conn.commit()
             return True
     except psycopg2.IntegrityError:
         return False
 
-def remove_player(discord_id):
+def remove_player(guild_id: str, discord_id):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM players WHERE discord_id = %s', (str(discord_id),))
+        cursor.execute('DELETE FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
-def update_ign(discord_id, ign):
+def update_ign(guild_id: str, discord_id, ign):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET bgmi_ign = %s WHERE discord_id = %s', (ign, str(discord_id)))
+        cursor.execute('UPDATE players SET bgmi_ign = %s WHERE guild_id = %s AND discord_id = %s', (ign, guild_id, str(discord_id)))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
-def set_team(discord_id, team):
+def set_team(guild_id: str, discord_id, team):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET team_name = %s WHERE discord_id = %s', (team, str(discord_id)))
+        cursor.execute('UPDATE players SET team_name = %s WHERE guild_id = %s AND discord_id = %s', (team, guild_id, str(discord_id)))
         if cursor.rowcount > 0:
             conn.commit()
             return True
         return False
 
-def reset_overall():
+def reset_overall(guild_id: str):
     """Zero out all lifetime stats and clear match history. Weekly untouched."""
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('UPDATE players SET lifetime_matches = 0, lifetime_kills = 0')
-        cursor.execute('DELETE FROM match_history')
+        cursor.execute('UPDATE players SET lifetime_matches = 0, lifetime_kills = 0 WHERE guild_id = %s', (guild_id,))
+        cursor.execute('DELETE FROM match_history WHERE guild_id = %s', (guild_id,))
         conn.commit()
 
-def get_weekly_leaderboard():
+def get_weekly_leaderboard(guild_id: str):
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
         cursor.execute('''
@@ -196,7 +215,7 @@ def get_weekly_leaderboard():
         teams[t].sort(key=lambda x: x['kills'], reverse=True)
     return teams
 
-def get_lifetime_leaderboard():
+def get_lifetime_leaderboard(guild_id: str):
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
         cursor.execute('''
@@ -223,20 +242,20 @@ def get_lifetime_leaderboard():
 #   NEW: MATCH HISTORY
 # ══════════════════════════════════════════════════════════
 
-def log_match_history(player_kills: list, match_date: str):
+def log_match_history(guild_id: str, player_kills: list, match_date: str):
     """Log per-match kills into match_history for a given date."""
     with DBConnection() as conn:
         cursor = conn.cursor()
         for discord_id, kills in player_kills:
-            cursor.execute('SELECT 1 FROM players WHERE discord_id = %s', (str(discord_id),))
+            cursor.execute('SELECT 1 FROM players WHERE guild_id = %s AND discord_id = %s', (guild_id, str(discord_id)))
             if cursor.fetchone():
                 cursor.execute(
-                    'INSERT INTO match_history (discord_id, kills, match_date) VALUES (%s, %s, %s)',
-                    (str(discord_id), kills, match_date)
+                    'INSERT INTO match_history (guild_id, discord_id, kills, match_date) VALUES (%s, %s, %s, %s)',
+                    (guild_id, str(discord_id), kills, match_date)
                 )
         conn.commit()
 
-def get_match_history(limit: int = 5) -> list:
+def get_match_history(guild_id: str, limit: int = 5) -> list:
     """Returns last N match entries grouped by logged_at timestamp."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -248,7 +267,7 @@ def get_match_history(limit: int = 5) -> list:
                 p.bgmi_ign,
                 mh.kills
             FROM match_history mh
-            JOIN players p ON p.discord_id = mh.discord_id
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
             ORDER BY mh.logged_at DESC
             LIMIT %s
         ''', (limit * 20,))  # fetch enough rows
@@ -283,7 +302,7 @@ def get_match_history(limit: int = 5) -> list:
 #   NEW: TEAM VS TEAM
 # ══════════════════════════════════════════════════════════
 
-def get_team_stats() -> list:
+def get_team_stats(guild_id: str) -> list:
     """Returns weekly stats grouped per team (non-Bench)."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -316,11 +335,11 @@ def get_team_stats() -> list:
 #   NEW: PERSONAL STATS
 # ══════════════════════════════════════════════════════════
 
-def get_personal_stats(discord_id: str) -> dict | None:
+def get_personal_stats(guild_id: str, discord_id: str) -> dict | None:
     """Returns full stats for a single player including lifetime rank."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
-        cursor.execute('SELECT * FROM players WHERE discord_id = %s', (str(discord_id),))
+        cursor.execute('SELECT * FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
         row = cursor.fetchone()
         if not row:
             return None
@@ -366,7 +385,7 @@ def get_personal_stats(discord_id: str) -> dict | None:
 #   NEW: WEEKLY WINNER
 # ══════════════════════════════════════════════════════════
 
-def get_weekly_winner() -> dict | None:
+def get_weekly_winner(guild_id: str) -> dict | None:
     """Returns the player with highest weekly kills."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -395,7 +414,7 @@ def get_weekly_winner() -> dict | None:
 #   NEW: DAILY MVP
 # ══════════════════════════════════════════════════════════
 
-def get_daily_mvp(date: str) -> dict | None:
+def get_daily_mvp(guild_id: str, date: str) -> dict | None:
     """Returns player with highest total kills on the given date."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -407,7 +426,7 @@ def get_daily_mvp(date: str) -> dict | None:
                 SUM(mh.kills)  AS total_kills,
                 COUNT(mh.id)   AS matches_today
             FROM match_history mh
-            JOIN players p ON p.discord_id = mh.discord_id
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
             WHERE mh.match_date = %s
             GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
             ORDER BY total_kills DESC, matches_today DESC
@@ -424,7 +443,7 @@ def get_daily_mvp(date: str) -> dict | None:
         'matches': row['matches_today'],
     }
 
-def get_daily_summary(date: str) -> list:
+def get_daily_summary(guild_id: str, date: str) -> list:
     """Returns all players' kills for a given date, sorted by kills desc."""
     with DBConnection() as conn:
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -435,7 +454,7 @@ def get_daily_summary(date: str) -> list:
                 SUM(mh.kills)  AS total_kills,
                 COUNT(mh.id)   AS matches_today
             FROM match_history mh
-            JOIN players p ON p.discord_id = mh.discord_id
+            JOIN players p ON p.guild_id = mh.guild_id AND p.discord_id = mh.discord_id\n            WHERE mh.guild_id = %s
             WHERE mh.match_date = %s
             GROUP BY mh.discord_id, p.bgmi_ign, p.team_name
             ORDER BY total_kills DESC
@@ -453,3 +472,33 @@ def get_daily_summary(date: str) -> list:
 
 if db_pool:
     init_db()
+# ══════════════════════════════════════════════════════════
+#   NEW: PLAYING LINEUP
+# ══════════════════════════════════════════════════════════
+
+def set_playing_lineup(guild_id: str, team_name: str, discord_ids: list):
+    with DBConnection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM playing_lineup WHERE guild_id = %s AND LOWER(team_name) = %s", (guild_id, team_name.lower()))
+        for d_id in discord_ids:
+            cursor.execute("INSERT INTO playing_lineup (guild_id, team_name, discord_id) VALUES (%s, %s, %s)", (guild_id, team_name, str(d_id)))
+        conn.commit()
+
+def get_all_playing_lineups(guild_id: str) -> dict:
+    with DBConnection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        cursor.execute('''
+            SELECT pl.team_name, p.discord_id, p.bgmi_ign
+            FROM playing_lineup pl
+            JOIN players p ON p.guild_id = pl.guild_id AND p.discord_id = pl.discord_id
+            WHERE pl.guild_id = %s
+            ORDER BY pl.team_name, p.bgmi_ign
+        ''', (guild_id,))
+        rows = cursor.fetchall()
+        lineups = {}
+        for row in rows:
+            team = row['team_name']
+            if team not in lineups:
+                lineups[team] = []
+            lineups[team].append({'discord_id': row['discord_id'], 'ign': row['bgmi_ign']})
+        return lineups

@@ -7,7 +7,7 @@ import database as db
 
 # ── Change these to match your server ─────────────────────
 ADMIN_ROLE = "Scrim Manager"
-EMBED_COLOR = 0xa855f7
+EMBED_COLOR = 0x39ff14
 ERROR_COLOR = 0xff4757
 SUCCESS_COLOR = 0x00ff88
 
@@ -32,7 +32,7 @@ def is_admin_check():
     async def predicate(ctx: commands.Context):
         if ctx.author.guild_permissions.administrator:
             return True
-        admin_role_id = db.get_admin_role()
+        admin_role_id = db.get_admin_role(str(ctx.guild.id))
         if admin_role_id:
             if any(r.id == admin_role_id for r in ctx.author.roles):
                 return True
@@ -99,15 +99,15 @@ class BGMICog(commands.Cog, name="BGMI"):
 
         # Write to DB — stats + match history
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        not_found = db.add_match_stats(player_kills)
-        db.log_match_history(player_kills, today)
+        not_found = db.add_match_stats(str(ctx.guild.id), player_kills)
+        db.log_match_history(str(ctx.guild.id), player_kills, today)
 
         embed = discord.Embed(title="✅ Stats Successfully Entered Boss", color=SUCCESS_COLOR)
 
         logged_lines = []
         for discord_id, kills in player_kills:
             if discord_id not in not_found:
-                player = db.get_player(discord_id)
+                player = db.get_player(str(ctx.guild.id), discord_id)
                 ign = player["bgmi_ign"] if player else f"<@{discord_id}>"
                 logged_lines.append(f"• **{ign}** — {kills} kills")
 
@@ -159,7 +159,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             return
 
         if str(reaction.emoji) == "✅":
-            db.reset_weekly()
+            db.reset_weekly(str(ctx.guild.id))
             embed = discord.Embed(
                 title="🔄 Weekly Stats Reset",
                 description="All weekly kills and matches have been wiped to **0**.\nOverall stats remain unchanged.",
@@ -204,7 +204,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             return
 
         if str(reaction.emoji) == "✅":
-            db.reset_overall()
+            db.reset_overall(str(ctx.guild.id))
             embed = discord.Embed(
                 title="🗑️ Overall Stats Reset",
                 description=(
@@ -235,7 +235,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             parts = value.split()
             ign  = parts[0]
             team = " ".join(parts[1:]) if len(parts) > 1 else "Bench"
-            success = db.add_player(discord_id, ign, team)
+            success = db.add_player(str(ctx.guild.id), discord_id, ign, team)
             if success:
                 embed = discord.Embed(title="✅ Player Added", color=SUCCESS_COLOR)
                 embed.add_field(name="Discord", value=member.mention, inline=True)
@@ -246,7 +246,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             await ctx.send(embed=embed)
 
         elif action == "remove":
-            success = db.remove_player(discord_id)
+            success = db.remove_player(str(ctx.guild.id), discord_id)
             if success:
                 embed = discord.Embed(
                     title="🗑️ Player Removed",
@@ -260,7 +260,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             if not value:
                 return await ctx.send(embed=discord.Embed(
                     description="❌ Usage: `!manageteam update_ign @player NewIGN`", color=ERROR_COLOR))
-            success = db.update_ign(discord_id, value.strip())
+            success = db.update_ign(str(ctx.guild.id), discord_id, value.strip())
             if success:
                 embed = discord.Embed(
                     title="✏️ IGN Updated",
@@ -276,7 +276,7 @@ class BGMICog(commands.Cog, name="BGMI"):
             if not value:
                 return await ctx.send(embed=discord.Embed(
                     description="❌ Usage: `!manageteam set_team @player TeamName`", color=ERROR_COLOR))
-            success = db.set_team(discord_id, value.strip())
+            success = db.set_team(str(ctx.guild.id), discord_id, value.strip())
             if success:
                 embed = discord.Embed(
                     title="🏷️ Team Updated",
@@ -315,7 +315,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 color=ERROR_COLOR))
 
     async def _send_weekly_leaderboard(self, ctx: commands.Context):
-        teams = db.get_weekly_leaderboard()
+        teams = db.get_weekly_leaderboard(str(ctx.guild.id))
         if not teams:
             return await ctx.send(embed=discord.Embed(
                 description="📭 No players in the database.", color=ERROR_COLOR))
@@ -350,7 +350,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         await ctx.send(embed=embed)
 
     async def _send_lifetime_leaderboard(self, ctx: commands.Context):
-        players = db.get_lifetime_leaderboard()
+        players = db.get_lifetime_leaderboard(str(ctx.guild.id))
         if not players:
             return await ctx.send(embed=discord.Embed(
                 description="📭 No players in the database.", color=ERROR_COLOR))
@@ -384,7 +384,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.has_permissions(administrator=True)
     async def assign_role(self, ctx, module: str, role_type: str, role: discord.Role):
         if module.lower() == "wow" and role_type.lower() == "manager":
-            db.set_admin_role(role.id)
+            db.set_admin_role(str(ctx.guild.id), role.id)
             embed = discord.Embed(
                 description=f"✅ Wow Manager role has been successfully set to {role.mention}",
                 color=SUCCESS_COLOR
@@ -402,7 +402,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         if limit < 1 or limit > 20:
             limit = 5
 
-        sessions = db.get_match_history(limit)
+        sessions = db.get_match_history(str(ctx.guild.id), limit)
         if not sessions:
             return await ctx.send(embed=discord.Embed(
                 description="📭 No match history found.", color=ERROR_COLOR))
@@ -435,7 +435,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="teamstats", aliases=["tvt"])
     async def team_stats(self, ctx: commands.Context):
         """Team vs Team weekly scoreboard."""
-        teams = db.get_team_stats()
+        teams = db.get_team_stats(str(ctx.guild.id))
         if not teams:
             return await ctx.send(embed=discord.Embed(
                 description="📭 No team data found.", color=ERROR_COLOR))
@@ -483,20 +483,35 @@ class BGMICog(commands.Cog, name="BGMI"):
         if member is None:
             member = ctx.author
 
-        stats = db.get_personal_stats(str(member.id))
+        stats = db.get_personal_stats(str(ctx.guild.id), str(member.id))
         if not stats:
             return await ctx.send(embed=discord.Embed(
                 description=f"❌ {member.mention} is not registered in the database.",
                 color=ERROR_COLOR))
 
+        career_matches = stats.get('lifetime_matches', 0)
+        career_kills = stats.get('lifetime_kills', 0)
+        career_avg = round(career_kills / career_matches, 1) if career_matches > 0 else 0.0
+        
+        if career_avg < 10:
+            category = "🤡 Jhatula Player"
+        elif career_avg < 14:
+            category = "🔥 Emerging Player"
+        elif career_avg < 20:
+            category = "💎 Elite Player"
+        else:
+            category = "👑 Jonathan ka Left Tatta"
+
         embed = discord.Embed(
             title=f"📊 {stats['ign']}  —  Stats Card",
+            description=f"### {category}",
             color=EMBED_COLOR
         )
         embed.set_thumbnail(url=member.display_avatar.url)
 
         embed.add_field(name="Team",          value=f"`{stats['team']}`",           inline=True)
-        embed.add_field(name="Career Rank",   value=f"`#{stats['lifetime_rank']}`", inline=True)
+        rank_display = f"`#{stats['lifetime_rank']}`" if stats['lifetime_kills'] > 0 else "`--`"
+        embed.add_field(name="Career Rank",   value=rank_display, inline=True)
         embed.add_field(name="Best Match",    value=f"`{stats['best_match']} kills`", inline=True)
 
         embed.add_field(
@@ -531,7 +546,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @commands.command(name="weekwinner", aliases=["ww"])
     async def week_winner(self, ctx: commands.Context):
         """Crown the weekly top killer. Run before !resetweekly."""
-        winner = db.get_weekly_winner()
+        winner = db.get_weekly_winner(str(ctx.guild.id))
         if not winner:
             return await ctx.send(embed=discord.Embed(
                 description="📭 No weekly data found yet.", color=ERROR_COLOR))
@@ -584,7 +599,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                     description="❌ Invalid format. Use `!today_mvp YYYY-MM-DD`",
                     color=ERROR_COLOR))
 
-        mvp = db.get_daily_mvp(date)
+        mvp = db.get_daily_mvp(str(ctx.guild.id), date)
         if not mvp:
             return await ctx.send(embed=discord.Embed(
                 description=f"📭 No match data found for **{date}**.", color=ERROR_COLOR))
@@ -637,7 +652,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                     description="❌ Invalid format. Use `!today_summary YYYY-MM-DD`",
                     color=ERROR_COLOR))
 
-        summary = db.get_daily_summary(date)
+        summary = db.get_daily_summary(str(ctx.guild.id), date)
         if not summary:
             return await ctx.send(embed=discord.Embed(
                 description=f"📭 No match data found for **{date}**.", color=ERROR_COLOR))
@@ -787,7 +802,7 @@ class BGMICog(commands.Cog, name="BGMI"):
                 description="❌ You need Administrator permissions to use this command!",
                 color=ERROR_COLOR))
         elif isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
-            admin_role_id = db.get_admin_role()
+            admin_role_id = db.get_admin_role(str(ctx.guild.id))
             role_mention = f"<@&{admin_role_id}>" if admin_role_id else f"`{ADMIN_ROLE}`"
             await ctx.send(embed=discord.Embed(
                 description=f"❌ You need the {role_mention} role (or Administrator) to use this command!",

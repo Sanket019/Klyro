@@ -59,49 +59,50 @@ async def help_slash(ctx):
     await send_help(ctx)
 
 async def send_help(ctx):
+    p = ctx.prefix
     embed = discord.Embed(
         title="🤖 Bot Commands",
-        description="Use your server's prefix (default `!`) or slash commands `/`!\n",
+        description=f"Use your server's prefix (`{p}`) or slash commands `/`!\n",
         color=0x9D00FF
     )
-    embed.add_field(name="🎮 BGMI Custom Matches", value="""
-`!lb weekly` — Weekly stats grouped by team
-`!lb overall` — All-time kills ranked globally
-`!bgmihelp` — Show all BGMI commands
+    embed.add_field(name="🎮 BGMI Custom Matches", value=f"""
+`{p}lb weekly` — Weekly stats grouped by team
+`{p}lb overall` — All-time kills ranked globally
+`{p}bgmihelp` — Show all BGMI commands
 """, inline=False)
 
-    embed.add_field(name="🔨 Moderation", value="""
-`!kick @user [reason]` — Kick a member
-`!ban @user [reason]` — Ban a member
-`!mute @user [duration] [reason]` — Timeout a member
-`!unmute @user` — Remove timeout
-`!clear [amount]` — Delete messages (default 10)
-`!warn @user [reason]` — Warn a member
-`!warnings @user` — View warnings
-`!clearwarnings @user` — Clear all warnings
+    embed.add_field(name="🔨 Moderation", value=f"""
+`{p}kick @user [reason]` — Kick a member
+`{p}ban @user [reason]` — Ban a member
+`{p}mute @user [duration] [reason]` — Timeout a member
+`{p}unmute @user` — Remove timeout
+`{p}clear [amount]` — Delete messages (default 10)
+`{p}warn @user [reason]` — Warn a member
+`{p}warnings @user` — View warnings
+`{p}clearwarnings @user` — Clear all warnings
 """, inline=False)
 
-    embed.add_field(name="⚙️ Utility", value="""
-`!remind <time> <message>` — Set a reminder (e.g. `!remind 30m Study DSA`)
-`!poll <question>, <opt1>, <opt2>` — Create a poll
-`!timer <minutes> [label]` — Countdown timer
-`!serverinfo` — Show server info
-`!userinfo [@user]` — Show user info
-`!ping` — Check bot latency
+    embed.add_field(name="⚙️ Utility", value=f"""
+`{p}remind <time> <message>` — Set a reminder (e.g. `{p}remind 30m Study DSA`)
+`{p}poll <question>, <opt1>, <opt2>` — Create a poll
+`{p}timer <minutes> [label]` — Countdown timer
+`{p}serverinfo` — Show server info
+`{p}userinfo [@user]` — Show user info
+`{p}ping` — Check bot latency
 """, inline=False)
 
-    embed.add_field(name="🌤️ Weather", value="""
-`!weather <city>` — Current weather
-`!forecast <city>` — 3-day forecast
+    embed.add_field(name="🌤️ Weather", value=f"""
+`{p}weather <city>` — Current weather
+`{p}forecast <city>` — 3-day forecast
 """, inline=False)
 
-    embed.add_field(name="✨ Miscellaneous", value="""
-`!avatar [@user]` — View user's avatar
-`!emoji <emoji>` — Enlarge an emoji
-`!sticker` — Enlarge a sticker
-`!setprefix <prefix>` — Change bot prefix (Admins)
-`!about` — Bot information
-`!invite` — Bot invite link
+    embed.add_field(name="✨ Miscellaneous", value=f"""
+`{p}avatar [@user]` — View user's avatar
+`{p}emoji <emoji>` — Enlarge an emoji
+`{p}sticker` — Enlarge a sticker
+`{p}setprefix <prefix>` — Change bot prefix (Admins)
+`{p}about` — Bot information
+`{p}invite` — Bot invite link
 """, inline=False)
 
     embed.set_footer(text="Tip: Slash commands show options as you type!")
