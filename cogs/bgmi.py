@@ -7,7 +7,7 @@ import database as db
 
 # ── Change these to match your server ─────────────────────
 ADMIN_ROLE = "Scrim Manager"
-EMBED_COLOR = 0x39ff14
+EMBED_COLOR = 0xa855f7
 ERROR_COLOR = 0xff4757
 SUCCESS_COLOR = 0x00ff88
 
@@ -505,7 +505,7 @@ class BGMICog(commands.Cog, name="BGMI"):
         embed = discord.Embed(
             title=f"📊 {stats['ign']}  —  Stats Card",
             description=f"### {category}",
-            color=EMBED_COLOR
+            color=0x39ff14
         )
         embed.set_thumbnail(url=member.display_avatar.url)
 

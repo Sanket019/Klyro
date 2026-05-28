@@ -144,8 +144,8 @@ def add_player(guild_id: str, discord_id, ign, team):
         with DBConnection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO players (discord_id, bgmi_ign, team_name)
-                VALUES (%s, %s, %s)
+                INSERT INTO players (guild_id, discord_id, bgmi_ign, team_name)
+                VALUES (%s, %s, %s, %s)
             ''', (guild_id, str(discord_id), ign, team))
             conn.commit()
             return True
@@ -155,7 +155,7 @@ def add_player(guild_id: str, discord_id, ign, team):
 def remove_player(guild_id: str, discord_id):
     with DBConnection() as conn:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM players WHERE guild_id = %s AND discord_id = %s', (str(discord_id),))
+        cursor.execute('DELETE FROM players WHERE guild_id = %s AND discord_id = %s', (guild_id, str(discord_id)))
         if cursor.rowcount > 0:
             conn.commit()
             return True
