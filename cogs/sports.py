@@ -51,7 +51,7 @@ class SportsCog(commands.Cog, name="Sports"):
         self.bot = bot
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
         self.model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name="gemini-1.5-flash",
             system_instruction=SYSTEM_PROMPT
         )
         self.conversations = {}
@@ -125,7 +125,7 @@ class SportsCog(commands.Cog, name="Sports"):
                 embed.add_field(name="\u200b", value="*...response truncated. Ask a more specific question for full details.*", inline=False)
 
         embed.set_footer(
-            text=f"Asked by {author.display_name}  •  Powered by Gemini 2.0  •  Live scores may be delayed",
+            text=f"Asked by {author.display_name}  •  Powered by Gemini AI  •  Live scores may be delayed",
             icon_url=author.display_avatar.url
         )
         embed.timestamp = discord.utils.utcnow()
