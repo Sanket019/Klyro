@@ -493,7 +493,9 @@ class BGMICog(commands.Cog, name="BGMI"):
         career_kills = stats.get('lifetime_kills', 0)
         career_avg = round(career_kills / career_matches, 1) if career_matches > 0 else 0.0
         
-        if career_avg < 10:
+        if career_matches == 0:
+            category = "Did not play"
+        elif career_avg < 10:
             category = "🤡 Jhatula Player"
         elif career_avg < 14:
             category = "🔥 Emerging Player"
