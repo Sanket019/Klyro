@@ -35,7 +35,6 @@ COGS = [
     "cogs.miscellaneous",
     "cogs.gemini_chat",
     "cogs.bgmi",
-    "cogs.sports",
 ]
 
 @bot.event
@@ -104,13 +103,6 @@ async def send_help(ctx):
 `{p}setprefix <prefix>` — Change bot prefix (Admins)
 `{p}about` — Bot information
 `{p}invite` — Bot invite link
-""", inline=False)
-
-    embed.add_field(name="🏆 Sports", value=f"""
-`{p}sports <question>` — Ask sports questions
-`{p}livescore <match>` — Get live scores
-`{p}player <name>` — Get player stats
-`{p}sportshelp` — Show all sports commands
 """, inline=False)
 
     embed.set_footer(text="Tip: Slash commands show options as you type!")

@@ -765,7 +765,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @set_playing.error
     async def set_playing_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, commands.BadArgument):
-            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing \"Team Name\" @p1 @p2 @p3 @p4 @p5`\nYou must mention exactly 5 players.")
+            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing \"Team Name\" @p1 @p2 @p3 @p4 @p5`\nYou must mention exactly 5 players.",)
 
     # ══════════════════════════════════════════════════════
     #   !team
@@ -860,29 +860,35 @@ class BGMICog(commands.Cog, name="BGMI"):
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(embed=discord.Embed(
                 description="❌ You need Administrator permissions to use this command!",
-                color=ERROR_COLOR))
+                color=ERROR_COLOR), delete_after=5.0)
         elif isinstance(error, (commands.MissingRole, commands.CheckAnyFailure)):
             admin_role_id = db.get_admin_role(str(ctx.guild.id))
             role_mention = f"<@&{admin_role_id}>" if admin_role_id else f"`{ADMIN_ROLE}`"
             await ctx.send(embed=discord.Embed(
                 description=f"❌ You need the {role_mention} role (or Administrator) to use this command!",
-                color=ERROR_COLOR))
+                color=ERROR_COLOR), delete_after=5.0)
         elif isinstance(error, commands.MemberNotFound):
             await ctx.send(embed=discord.Embed(
-                description="❌ Could not find that member. Make sure to ping them correctly.",
-                color=ERROR_COLOR))
+                description="❌ Could not find that member. Make sure to ping them correctly.\n\nType `!bgmihelp` for a list of valid commands.",
+                color=ERROR_COLOR), delete_after=5.0)
         elif isinstance(error, commands.RoleNotFound):
             await ctx.send(embed=discord.Embed(
-                description="❌ Could not find that role. Make sure to ping it correctly.",
-                color=ERROR_COLOR))
+                description="❌ Could not find that role. Make sure to ping it correctly.\n\nType `!bgmihelp` for a list of valid commands.",
+                color=ERROR_COLOR), delete_after=5.0)
+        elif isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(embed=discord.Embed(
+                description=f"❌ Missing required argument: `{error.param.name}`\n\nType `!bgmihelp` for a list of valid commands.",
+                color=ERROR_COLOR), delete_after=5.0)
         elif isinstance(error, commands.BadArgument):
             await ctx.send(embed=discord.Embed(
-                description=f"❌ Invalid argument provided: {error}",
-                color=ERROR_COLOR))
+                description=f"❌ Invalid argument provided: {error}\n\nType `!bgmihelp` for a list of valid commands.",
+                color=ERROR_COLOR), delete_after=5.0)
+        elif isinstance(error, commands.CommandNotFound):
+            pass # Ignore command not found since other cogs handle it
         else:
             await ctx.send(embed=discord.Embed(
-                description=f"❌ An error occurred: {str(error)}",
-                color=ERROR_COLOR))
+                description=f"❌ An error occurred: {str(error)}\n\nType `!bgmihelp` for a list of valid commands.",
+                color=ERROR_COLOR), delete_after=5.0)
 
 
 # ── Cog loader ────────────────────────────────────────────
