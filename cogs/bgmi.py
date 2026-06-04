@@ -893,4 +893,5 @@ class BGMICog(commands.Cog, name="BGMI"):
 
 # ── Cog loader ────────────────────────────────────────────
 def setup(bot):
+    # Minor fixes
     bot.add_cog(BGMICog(bot))

@@ -9,8 +9,10 @@ class GeminiChat(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        # Configure API key from environment variables
         genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY"))
-        # Using gemini-1.5-flash as it is the current fast and free-tier model
+        
+        # FIXED: Using the active 1.5 Flash model instead of the deprecated gemini-pro
         self.model = genai.GenerativeModel("gemini-1.5-flash")
         self.conversations = {}
 
@@ -20,12 +22,14 @@ class GeminiChat(commands.Cog):
         return self.conversations[user_id]
 
     def trim_history(self, user_id: str):
+        # Keep only the last 10 messages to prevent hitting token limits
         if len(self.conversations[user_id]) > 10:
             self.conversations[user_id] = self.conversations[user_id][-10:]
 
     async def query_gemini(self, user_id: str, question: str) -> str:
         history = self.get_history(user_id)
         
+        # Format history for Gemini API
         gemini_history = []
         for msg in history:
             role = "user" if msg["role"] == "user" else "model"
@@ -33,6 +37,7 @@ class GeminiChat(commands.Cog):
             
         chat = self.model.start_chat(history=gemini_history)
         
+        # Run the synchronous API call in an executor so it doesn't block the Discord bot
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
@@ -40,6 +45,7 @@ class GeminiChat(commands.Cog):
         )
         answer = response.text
         
+        # Save the new interaction to history
         history.append({"role": "user", "content": question})
         history.append({"role": "model", "content": answer})
         self.trim_history(user_id)
