@@ -1,16 +1,34 @@
 # 🤖 Klyro - Multipurpose Discord Bot
 
-Klyro is a feature-rich, multipurpose Discord bot designed to bring AI chat, moderation tools, utility features, weather info, and general fun to your server. It supports both custom prefix commands and modern Discord slash (`/`) commands.
+Klyro is a feature-rich, multipurpose Discord bot designed to bring AI chat, moderation tools, utility features, weather info, and general fun to your server. It also features a fully-fledged BGMI (Battlegrounds Mobile India) clan and match statistics tracking system! It supports both custom prefix commands and modern Discord slash (`/`) commands.
 
 ## 🛠️ Technology Stack
 
 * **Python 3 & Py-cord**: The core language and Discord API wrapper.
-* **Google Gemini AI (`gemini-pro`)**: Powers the General AI chat.
+* **Google Gemini AI (`gemini-1.5-flash`)**: Powers the General AI chat.
 * **Open-Meteo API**: Keyless API used for real-time weather and forecasting.
+* **PostgreSQL (Neon)**: Database used for robust storage of BGMI match statistics, warnings, and configurations.
 * **Flask & Gunicorn**: Used alongside threading to maintain a lightweight web server, satisfying cloud hosting port-binding requirements.
-* **Render**: Cloud platform used for continuous deployment.
 
 ## ✨ Features & Commands
+
+### 🎮 BGMI Custom Matches
+Comprehensive stat-tracking system for BGMI custom matches:
+* `!leaderboard [weekly|overall]` (or `!lb`) — View the weekly team leaderboard or all-time top killers.
+* `!stats [@user]` — View an individual player's personalized stats card.
+* `!teamstats` (or `!tvt`) — Compare weekly performance across all teams.
+* `!matchhistory [n]` (or `!mh`) — View the last N match sessions.
+* `!today_mvp` — Crown the MVP with the highest kills for the day.
+* `!today_summary` — See a full kill summary of everyone who played today.
+* `!weekwinner` (or `!ww`) — Crown the overall top killer of the week.
+* `!team` — View today's active playing 5 lineup for all teams.
+* `!bgmihelp` — View all BGMI-related commands.
+
+**Admin Only (`Scrim Manager` role):**
+* `!addmatchstats @p1 k1 @p2 k2 ...` — Log kills from a match.
+* `!manageteam <add|remove|update_ign|set_team>` — Manage registered players.
+* `!playing "Team" @p1 @p2 @p3 @p4 @p5` — Lock in a team's playing 5.
+* `!resetweekly` / `!resetoverall` — Reset weekly or lifetime statistics.
 
 ### 🤖 General AI
 Have open-ended conversations with the AI:
