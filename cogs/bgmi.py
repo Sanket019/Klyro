@@ -748,10 +748,34 @@ class BGMICog(commands.Cog, name="BGMI"):
     #   !playing
     # ══════════════════════════════════════════════════════
     @commands.command(name="playing")
-    async def set_playing(self, ctx: commands.Context, team_name: str, p1: Member, p2: Member, p3: Member, p4: Member, p5: Member):
+    async def set_playing(self, ctx: commands.Context, *, args: str = None):
         if not await self.check_admin(ctx): return
         
-        discord_ids = [p1.id, p2.id, p3.id, p4.id, p5.id]
+        if not args:
+            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing Team Name @p1 @p2 @p3 @p4 @p5`\nYou must provide a team name and exactly 5 players.")
+            return
+
+        tokens = args.split()
+        if len(tokens) < 6:
+            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing Team Name @p1 @p2 @p3 @p4 @p5`\nYou must provide a team name and exactly 5 players.")
+            return
+
+        team_name = " ".join(tokens[:-5])
+        discord_ids = []
+        
+        converter = commands.MemberConverter()
+        for token in tokens[-5:]:
+            try:
+                member = await converter.convert(ctx, token)
+                discord_ids.append(member.id)
+            except commands.BadArgument:
+                clean_token = token.replace('<@!', '').replace('<@', '').replace('>', '')
+                if clean_token.isdigit():
+                    discord_ids.append(int(clean_token))
+                else:
+                    await ctx.send(f"❌ Player not found: `{token}`. Please provide valid @mentions or Discord IDs.")
+                    return
+
         db.set_playing_lineup(str(ctx.guild.id), team_name, discord_ids)
         
         embed = discord.Embed(
@@ -759,13 +783,9 @@ class BGMICog(commands.Cog, name="BGMI"):
             description=f"Successfully locked in the playing 5 for **{team_name}**.",
             color=EMBED_COLOR
         )
-        embed.add_field(name="Players", value=f"{p1.mention} {p2.mention} {p3.mention} {p4.mention} {p5.mention}")
+        mentions = [f"<@{uid}>" for uid in discord_ids]
+        embed.add_field(name="Players", value=" ".join(mentions))
         await ctx.send(embed=embed)
-
-    @set_playing.error
-    async def set_playing_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, commands.BadArgument):
-            await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing \"Team Name\" @p1 @p2 @p3 @p4 @p5`\nYou must mention exactly 5 players.",)
 
     # ══════════════════════════════════════════════════════
     #   !team
