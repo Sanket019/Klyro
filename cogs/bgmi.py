@@ -893,5 +893,5 @@ class BGMICog(commands.Cog, name="BGMI"):
 
 # ── Cog loader ────────────────────────────────────────────
 def setup(bot):
-    # Git streak secured once again!
+    # Git streak still going strong!
     bot.add_cog(BGMICog(bot))
