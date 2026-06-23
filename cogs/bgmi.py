@@ -748,8 +748,8 @@ class BGMICog(commands.Cog, name="BGMI"):
     #   !playing
     # ══════════════════════════════════════════════════════
     @commands.command(name="playing")
+    @is_admin_check()
     async def set_playing(self, ctx: commands.Context, *, args: str = None):
-        if not await self.check_admin(ctx): return
         
         if not args:
             await ctx.send(f"❌ **Usage:** `{ctx.prefix}playing Team Name @p1 @p2 @p3 @p4 @p5`\nYou must provide a team name and exactly 5 players.")
@@ -876,6 +876,7 @@ class BGMICog(commands.Cog, name="BGMI"):
     @manage_team.error
     @assign_role.error
     @db_status.error
+    @set_playing.error
     async def bgmi_admin_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(embed=discord.Embed(
