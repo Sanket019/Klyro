@@ -71,3 +71,4 @@ General utility and configuration commands:
 ---
 
 *Note: All commands can be run using the server's command prefix or by typing `/` to use slash commands.*
+<!-- Git streak maintained -->
